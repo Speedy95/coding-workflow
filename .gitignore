@@ -1,0 +1,18 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# The plugin marketplace and demo app are independent git repos —
+# tracked and pushed separately, not as part of this program repo.
+marketplace/
+demo-app/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db

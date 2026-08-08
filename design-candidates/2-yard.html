@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDLC candidate — Yard</title>
+<style>
+:root {
+  color-scheme: light;
+  --page:#f2f5f8; --grid:#e9eef3; --surface:#fcfdfe; --line:#d7dfe7;
+  --ink:#17222c; --sub:#52616e; --faint:#8595a3; --steel:#6a7a88;
+  --amber:#e3a008; --amber-ink:#9a6700; --green:#1a7f37; --focus:#9a6700;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page:#10151b; --grid:#151b22; --surface:#161d24; --line:#26303a;
+    --ink:#e8eef3; --sub:#9fb0bd; --faint:#64737f; --steel:#8494a2;
+    --amber:#f0b429; --amber-ink:#f0b429; --green:#4cc26e; --focus:#f0b429;
+  }
+}
+* { box-sizing:border-box; margin:0; }
+body { background:var(--page);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px; color:var(--ink);
+  font:13px/1.5 "Cascadia Code",ui-monospace,Consolas,monospace; padding:40px 28px 72px; }
+.wrap { max-width:1240px; margin:0 auto; }
+h1 { font-size:19px; font-weight:600; }
+h1 .cursor { display:inline-block; width:9px; height:16px; margin-left:6px; background:var(--amber);
+  vertical-align:-2px; animation:blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity:0; } }
+.sub { color:var(--faint); font-size:11px; margin:4px 0 26px; }
+.yard { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; align-items:start; overflow-x:auto; }
+.col { min-width:170px; }
+.c-head { display:flex; align-items:baseline; justify-content:space-between; padding:0 2px 8px; }
+.c-title { font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; font-weight:600; color:var(--sub); }
+.c-count { font-size:11px; color:var(--faint); }
+.lane { border-top:2px solid var(--steel); padding-top:10px; min-height:120px; }
+.col.gate-col .lane { border-top-style:dashed; border-top-color:var(--line); }
+.ticket { background:var(--surface); border:1px solid var(--line); border-radius:8px;
+  padding:10px 12px; margin-bottom:10px; }
+.ticket.needs { border-left:3px solid var(--amber); }
+.ticket.done-t { opacity:.65; }
+.t-slug { font-size:10.5px; color:var(--sub); }
+.t-title { font-weight:600; font-size:12.5px; margin:2px 0 8px; }
+.chips { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:8px; }
+.chip { font-size:10px; padding:1px 7px; border-radius:999px; border:1px solid var(--line); color:var(--faint); }
+.chip.ok { color:var(--green); border-color:color-mix(in srgb,var(--green) 45%,transparent); }
+.chip.hot { color:var(--amber-ink); border-color:color-mix(in srgb,var(--amber) 55%,transparent); font-weight:600; }
+.cmd { font:inherit; font-size:11px; color:var(--ink); background:none; border:none; padding:2px 4px;
+  margin:-2px -4px; border-radius:4px; cursor:pointer; text-align:left; }
+.cmd:hover { background:color-mix(in srgb,var(--amber) 12%,transparent); }
+.cmd:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.cmd .pr { color:var(--amber-ink); }
+.cmd.ok::after { content:" ✓"; color:var(--green); }
+.t-meta { font-size:10px; color:var(--faint); margin-top:6px; }
+@media (prefers-reduced-motion: reduce) { h1 .cursor { animation:none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>sdlc // demo-app<span class="cursor"></span></h1>
+  <p class="sub">generated 2026-08-02 12:00 UTC · 4 in flight · 1 shipped · first-try green 67% · 2 lessons</p>
+
+  <div class="yard">
+    <div class="col">
+      <div class="c-head"><span class="c-title">requirements</span><span class="c-count">1</span></div>
+      <div class="lane">
+        <div class="ticket needs">
+          <div class="t-slug">003-remove-cmd</div>
+          <div class="t-title">Remove command with confirmation</div>
+          <div class="chips"><span class="chip hot">spec · awaiting you</span></div>
+          <button class="cmd" data-cmd="/sdlc:approve spec 003-remove-cmd" onclick="copyCmd(this)"><span class="pr">❯</span> approve spec</button>
+          <div class="t-meta">Aug 02</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="c-head"><span class="c-title">plan</span><span class="c-count">1</span></div>
+      <div class="lane">
+        <div class="ticket needs">
+          <div class="t-slug">005-task-notes</div>
+          <div class="t-title">Free-text notes on tasks</div>
+          <div class="chips"><span class="chip ok">spec ✓</span><span class="chip hot">plan · awaiting you</span></div>
+          <button class="cmd" data-cmd="/sdlc:approve plan 005-task-notes" onclick="copyCmd(this)"><span class="pr">❯</span> approve plan</button>
+          <div class="t-meta">Aug 02</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="c-head"><span class="c-title">implement</span><span class="c-count">1</span></div>
+      <div class="lane">
+        <div class="ticket">
+          <div class="t-slug">002-priorities</div>
+          <div class="t-title">Task priorities (high/normal/low)</div>
+          <div class="chips"><span class="chip ok">spec ✓</span><span class="chip ok">plan ✓</span></div>
+          <button class="cmd" data-cmd="/sdlc:implement 002-priorities" onclick="copyCmd(this)"><span class="pr">❯</span> /sdlc:implement</button>
+          <div class="t-meta">3/5 tasks · Aug 02</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="c-head"><span class="c-title">verify</span><span class="c-count">1</span></div>
+      <div class="lane">
+        <div class="ticket">
+          <div class="t-slug">004-csv-export</div>
+          <div class="t-title">Export tasks as CSV</div>
+          <div class="chips"><span class="chip ok">spec ✓</span><span class="chip ok">plan ✓</span></div>
+          <button class="cmd" data-cmd="/sdlc:verify 004-csv-export" onclick="copyCmd(this)"><span class="pr">❯</span> /sdlc:verify</button>
+          <div class="t-meta">Aug 02</div>
+        </div>
+      </div>
+    </div>
+    <div class="col">
+      <div class="c-head"><span class="c-title">document</span><span class="c-count">0</span></div>
+      <div class="lane"></div>
+    </div>
+    <div class="col">
+      <div class="c-head"><span class="c-title">⚑ shipped</span><span class="c-count">1</span></div>
+      <div class="lane">
+        <div class="ticket done-t">
+          <div class="t-slug">001-due-dates</div>
+          <div class="t-title">Add due dates to tasks</div>
+          <div class="chips"><span class="chip ok">all gates ✓</span></div>
+          <div class="t-meta">shipped Aug 01 · 2 lessons</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function copyCmd(btn){navigator.clipboard.writeText(btn.dataset.cmd).then(function(){
+  btn.classList.add('ok');setTimeout(function(){btn.classList.remove('ok')},1200)})}
+</script>
+</body>
+</html>
