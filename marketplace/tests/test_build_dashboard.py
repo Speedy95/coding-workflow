@@ -46,3 +46,15 @@ def test_empty_repo_renders_empty_state(repo):
 def test_quick_track_badge(repo):
     repo.write_feature(phase="implement", spec=True, plan=True, track="quick")
     assert "quick track" in build(repo)
+
+
+def test_review_questionnaire_is_readable_on_the_board(repo):
+    """A pending REVIEW.md is the one artifact a reviewer needs to act on."""
+    fdir = repo.write_feature(phase="requirements")
+    (fdir / "spec.md").write_text("# X\n", encoding="utf-8")
+    (fdir / "REVIEW.md").write_text(
+        "1. Should due dates be optional?\nAnswer:\n\nApprove this spec? (yes/no):\n",
+        encoding="utf-8")
+    html = build(repo)
+    assert "REVIEW.md" in html
+    assert "Should due dates be optional?" in html
