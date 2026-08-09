@@ -1,0 +1,8 @@
+{
+  "name": "sdlc",
+  "version": "1.1.0",
+  "description": "Gated SDLC workflow: one command per feature, conversational approvals, hook-enforced scope gates, FR-traced verification, and a learning retro loop. File-based state in specs/, live dashboard included.",
+  "author": {
+    "name": "Alex"
+  }
+}

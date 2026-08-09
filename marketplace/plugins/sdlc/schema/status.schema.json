@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "sdlc-status-v1",
+  "title": "SDLC feature status",
+  "type": "object",
+  "required": ["schemaVersion", "feature", "slug", "phase", "gates", "updatedAt"],
+  "additionalProperties": true,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "type": "string", "minLength": 1 },
+    "slug": { "type": "string", "pattern": "^[0-9]{3}-[a-z0-9-]+$" },
+    "phase": { "enum": ["requirements", "plan", "implement", "verify", "document", "done"] },
+    "track": { "enum": ["quick", "full"], "description": "quick = plan folded into spec approval; default full" },
+    "gates": {
+      "type": "object",
+      "required": ["spec_approved", "plan_approved", "verification_passed", "docs_complete"],
+      "additionalProperties": false,
+      "properties": {
+        "spec_approved": { "$ref": "#/definitions/gate" },
+        "plan_approved": { "$ref": "#/definitions/gate" },
+        "verification_passed": { "$ref": "#/definitions/gate" },
+        "docs_complete": { "$ref": "#/definitions/gate" }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "required": ["done", "total"],
+      "properties": {
+        "done": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      },
+      "description": "Mirrored by the implement phase after every completed task"
+    },
+    "verifyAttempts": { "type": "integer", "minimum": 0, "description": "Failed verify passes; 2 consecutive failures stop the auto-loop" },
+    "artifacts": { "type": "object" },
+    "updatedAt": { "type": "string", "description": "UTC ISO 8601" }
+  },
+  "definitions": {
+    "gate": {
+      "type": "object",
+      "required": ["approved"],
+      "properties": {
+        "approved": { "type": "boolean" },
+        "by": { "type": ["string", "null"] },
+        "at": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

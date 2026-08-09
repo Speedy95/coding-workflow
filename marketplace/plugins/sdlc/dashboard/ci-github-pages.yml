@@ -1,0 +1,31 @@
+# Example GitHub Action: publish the SDLC board to GitHub Pages on every
+# specs/ change. Copy to .github/workflows/sdlc-board.yml in the target repo
+# and vendor build_dashboard.py + template.html (e.g. under .sdlc/) or fetch
+# them from your plugin marketplace repo.
+name: SDLC board
+on:
+  push:
+    branches: [main]
+    paths: ["specs/**", "lessons/**"]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Build board
+        run: |
+          mkdir -p _site
+          python .sdlc/build_dashboard.py . -o _site/index.html
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deployment
+        uses: actions/deploy-pages@v4

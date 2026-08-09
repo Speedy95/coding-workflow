@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SDLC — __REPO__</title>
+<style>
+/* Onyx / Dignitas schema: black glass, #f0d000 yellow, readability first */
+:root {
+  color-scheme: dark;
+  --page:#080809;
+  --surface:rgba(255,255,255,0.045); --surface-2:rgba(255,255,255,0.03);
+  --line:rgba(255,255,255,0.13); --dim:rgba(255,255,255,0.38);
+  --ink:#f6f6f2; --sub:#d6d6cc; --faint:#a9a99f; --steel:#b4b4aa;
+  --amber:#f0d000; --amber-ink:#f0d000; --green:#4cc26e; --focus:#f0d000;
+}
+* { box-sizing:border-box; margin:0; }
+body { background:var(--page);
+  background-image:radial-gradient(52vw 40vh at 12% -6%, rgba(240,208,0,0.055), transparent 62%),
+                   radial-gradient(46vw 36vh at 92% 108%, rgba(255,255,255,0.035), transparent 60%);
+  background-attachment:fixed; color:var(--ink);
+  font:13px/1.55 "Cascadia Code",ui-monospace,Consolas,monospace; padding:40px 28px 72px; }
+.wrap { max-width:1080px; margin:0 auto; }
+h1 { font-size:19px; font-weight:600; }
+h1 .cursor { display:inline-block; width:9px; height:16px; margin-left:6px; background:var(--amber);
+  vertical-align:-2px; animation:blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity:0; } }
+.sub { color:var(--faint); font-size:11px; margin:4px 0 24px; }
+.sub b { color:var(--sub); font-weight:600; }
+.sub .hotn { color:var(--amber-ink); font-weight:600; }
+.live { color:var(--green); } .live::before { content:"● "; }
+.snap::before { content:"○ "; }
+.group { margin-bottom:26px; }
+.g-head { display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
+.g-title { font-size:11px; text-transform:uppercase; letter-spacing:.1em; font-weight:600; color:var(--sub); }
+.g-head.hot .g-title { color:var(--amber-ink); }
+.g-count { font-size:11px; color:var(--faint); }
+.g-rule { flex:1; border-top:1px solid var(--line); transform:translateY(-3px); }
+.board { background:var(--surface); border:1px solid var(--line); border-radius:10px;
+  backdrop-filter:blur(14px); }
+.strip-wrap + .strip-wrap { border-top:1px solid var(--line); }
+.strip { display:flex; align-items:center; gap:16px; padding:11px 16px; cursor:pointer; }
+.strip:hover { background:color-mix(in srgb,var(--amber) 4%,transparent); }
+.strip:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; border-radius:8px; }
+.strip.needs { box-shadow:inset 3px 0 0 var(--amber); }
+.chev { color:var(--faint); font-size:10px; transition:transform .15s; width:12px; }
+.strip[aria-expanded="true"] .chev { transform:rotate(90deg); }
+.slug { font-size:11px; color:var(--sub); min-width:118px; }
+.title { font-weight:600; font-size:13.5px; flex:1; min-width:140px; }
+.bar { display:flex; gap:4px; flex-shrink:0; }
+.seg { width:26px; height:7px; border-radius:4px; background:rgba(255,255,255,0.16); }
+.seg.done { background:rgba(255,255,255,0.45); }
+.seg.cur-review { background:var(--amber); box-shadow:0 0 10px rgba(240,208,0,0.4); }
+.seg.cur-run { background:var(--ink); }
+.seg.ship { background:var(--green); }
+.status { min-width:200px; }
+.status .s1 { font-size:13px; font-weight:600; }
+.status.review .s1 { color:var(--amber); }
+.status.run .s1 { color:var(--ink); }
+.status.done .s1 { color:var(--green); }
+.status .s2 { font-size:10.5px; color:var(--faint); }
+.cmdcol { min-width:158px; }
+.cmd { font:inherit; font-size:12px; color:var(--ink); background:none; border:none; padding:2px 6px;
+  border-radius:4px; cursor:pointer; white-space:nowrap; }
+.cmd:hover { background:color-mix(in srgb,var(--amber) 12%,transparent); }
+.cmd:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.cmd .pr { color:var(--amber-ink); }
+.cmd.ok::after { content:" ✓"; color:var(--green); }
+.shipped-strip { opacity:.65; }
+.dossier { border-top:1px dashed var(--line); padding:14px 18px 16px 46px; }
+.ledger { border-left:2px solid var(--line); padding-left:16px; margin-bottom:4px; }
+.lg { position:relative; padding:2px 0 10px; font-size:12px; }
+.lg::before { content:""; position:absolute; left:-21.5px; top:7px; width:8px; height:8px;
+  transform:rotate(45deg); background:var(--surface); border:2px solid var(--line); }
+.lg.ok::before { background:var(--green); border-color:var(--green); }
+.lg.hot::before { background:var(--surface); border-color:var(--amber); }
+.lg .when { color:var(--faint); font-size:10.5px; margin-left:8px; }
+.lg.ok .what { color:var(--green); }
+.lg.hot .what { color:var(--amber-ink); font-weight:600; }
+.lg.todo .what { color:var(--faint); }
+.tabs { display:flex; gap:6px; margin:12px 0 0; flex-wrap:wrap; }
+.tab { font:inherit; font-size:11px; color:var(--sub); background:none; border:1px solid var(--line);
+  border-radius:6px 6px 0 0; border-bottom:none; padding:4px 12px; cursor:pointer; }
+.tab:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; }
+.tab.sel { color:var(--ink); font-weight:600; background:color-mix(in srgb,var(--amber) 7%,transparent); }
+.doc { border:1px solid var(--line); border-radius:0 8px 8px 8px; padding:6px 16px 14px; font-size:12.5px;
+  color:var(--sub); max-height:420px; overflow-y:auto; background:var(--surface-2); }
+.doc h3,.doc h4,.doc h5,.doc h6 { color:var(--ink); font-size:11px; text-transform:uppercase;
+  letter-spacing:.07em; margin:13px 0 4px; }
+.doc p { margin:6px 0; } .doc ul,.doc ol { padding-left:20px; margin:4px 0; } .doc li { margin:2px 0; }
+.doc code { background:color-mix(in srgb,var(--steel) 14%,transparent); border-radius:3px; padding:0 4px; }
+.doc pre { background:color-mix(in srgb,var(--steel) 10%,transparent); border-radius:6px;
+  padding:10px 12px; margin:8px 0; overflow-x:auto; }
+.doc pre code { background:none; padding:0; }
+.doc hr { border:none; border-top:1px solid var(--line); margin:10px 0; }
+.doc a { color:var(--amber-ink); }
+.next { margin-top:14px; display:flex; align-items:baseline; gap:10px; }
+.hint { color:var(--faint); font-size:11px; }
+.lesson { border:1px solid var(--line); border-radius:10px; margin-bottom:8px; background:var(--surface);
+  backdrop-filter:blur(14px); }
+.lesson summary { cursor:pointer; padding:8px 14px; font-size:12px; color:var(--sub); list-style:none;
+  display:flex; gap:8px; align-items:baseline; }
+.lesson summary::before { content:"▸"; color:var(--faint); transition:transform .15s; }
+.lesson[open] summary::before { transform:rotate(90deg); }
+.lesson summary:focus-visible { outline:2px solid var(--focus); outline-offset:-2px; border-radius:8px; }
+.lesson .doc { border:none; border-top:1px solid var(--line); border-radius:0 0 8px 8px; max-height:none; }
+.empty { border:1px dashed var(--line); border-radius:10px; padding:34px; text-align:center;
+  color:var(--sub); background:var(--surface); backdrop-filter:blur(14px); }
+.empty .pr { color:var(--amber-ink); }
+.nav { display:flex; gap:8px; margin-bottom:22px; }
+.navtab { font:inherit; font-size:12px; text-transform:uppercase; letter-spacing:.09em; font-weight:600;
+  color:var(--sub); background:var(--surface); border:1px solid var(--line); border-radius:9px;
+  padding:8px 18px; cursor:pointer; backdrop-filter:blur(14px); }
+.navtab:hover { color:var(--ink); border-color:rgba(255,255,255,0.22); }
+.navtab:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.navtab.sel { color:var(--ink); border-color:rgba(240,208,0,0.55); background:rgba(240,208,0,0.09); }
+.navtab .n { color:var(--faint); font-weight:400; background:rgba(255,255,255,0.08);
+  border-radius:999px; padding:1px 8px; margin-left:4px; }
+.navtab.sel .n { color:var(--amber); background:rgba(240,208,0,0.12); }
+.kbd-hint { color:var(--faint); font-size:10px; margin-top:22px; }
+kbd { border:1px solid var(--line); border-radius:3px; padding:0 4px; font:inherit; }
+@media (prefers-reduced-motion: reduce) { h1 .cursor { animation:none; } .chev { transition:none; } }
+@media (max-width:720px) { .strip { flex-wrap:wrap; } .dossier { padding-left:18px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1 id="h-title">sdlc<span class="cursor"></span></h1>
+  <p class="sub" id="h-sub"></p>
+  <div class="nav" id="nav"></div>
+  <div id="view"></div>
+  <p class="kbd-hint"><kbd>j</kbd>/<kbd>k</kbd> move · <kbd>enter</kbd> expand · <kbd>c</kbd> copy command</p>
+</div>
+<script>
+"use strict";
+var SERVE = __SERVE__;
+var STATE = __STATE__;
+var expanded = {}, activeTab = {}, lastPayload = null;
+var view = location.hash === "#lessons" ? "lessons" : "board";
+
+/* minimal markdown renderer (escapes first; headings, lists, fences, inline) */
+function inlineMd(s) {
+  return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/(^|[^*])\*([^*]+)\*/g, "$1<em>$2</em>")
+          .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2" rel="noopener">$1</a>');
+}
+function md(src) {
+  src = src.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  var lines = src.split(/\r?\n/), out = [], code = false, list = null, i = 0;
+  if (lines[0] === "---") {            /* skip frontmatter */
+    for (i = 1; i < lines.length && lines[i] !== "---"; i++) {}
+    i++;
+  }
+  function closeList() { if (list) { out.push("</" + list + ">"); list = null; } }
+  for (; i < lines.length; i++) {
+    var l = lines[i];
+    if (/^```/.test(l)) {
+      if (code) { out.push("</code></pre>"); code = false; }
+      else { closeList(); out.push('<pre><code>'); code = true; }
+      continue;
+    }
+    if (code) { out.push(l + "\n"); continue; }
+    var h = l.match(/^(#{1,4})\s+(.*)/);
+    if (h) { closeList(); var lv = h[1].length + 2; out.push("<h" + lv + ">" + inlineMd(h[2]) + "</h" + lv + ">"); continue; }
+    if (/^\s*[-*]\s+/.test(l)) {
+      if (list !== "ul") { closeList(); out.push("<ul>"); list = "ul"; }
+      out.push("<li>" + inlineMd(l.replace(/^\s*[-*]\s+/, "")) + "</li>"); continue;
+    }
+    if (/^\s*\d+\.\s+/.test(l)) {
+      if (list !== "ol") { closeList(); out.push("<ol>"); list = "ol"; }
+      out.push("<li>" + inlineMd(l.replace(/^\s*\d+\.\s+/, "")) + "</li>"); continue;
+    }
+    if (/^\s*---+\s*$/.test(l)) { closeList(); out.push("<hr>"); continue; }
+    if (/^\s*$/.test(l)) { closeList(); continue; }
+    closeList(); out.push("<p>" + inlineMd(l) + "</p>");
+  }
+  if (code) out.push("</code></pre>");
+  closeList();
+  return out.join("");
+}
+function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+/* phase bar: 5 clear segments, current colored by what it waits on */
+var PHASES = ["requirements", "plan", "implement", "verify", "document"];
+function phaseBar(f) {
+  var done = f.phase === "done";
+  var cur = done ? 5 : Math.max(0, PHASES.indexOf(f.phase));
+  var segs = "";
+  for (var i = 0; i < 5; i++) {
+    var cls = "seg";
+    if (done) cls += " ship";
+    else if (i < cur) cls += " done";
+    else if (i === cur) cls += f.group === "review" ? " cur-review" : " cur-run";
+    segs += '<span class="' + cls + '" title="' + PHASES[i] + '"></span>';
+  }
+  return '<span class="bar" title="requirements · plan · implement · verify · document">' + segs + "</span>";
+}
+
+var GATE_LABELS = [["spec_approved", "spec approved"], ["plan_approved", "plan approved"],
+  ["verification_passed", "verification passed"], ["docs_complete", "docs complete"]];
+function ledger(f) {
+  var rows = [], gates = f.gates || {};
+  GATE_LABELS.forEach(function (gl) {
+    var g = gates[gl[0]] || {};
+    if (g.approved) {
+      var by = g.by && String(g.by).indexOf("sdlc-") !== 0 ? " · " + esc(g.by) : "";
+      rows.push('<div class="lg ok"><span class="what">' + gl[1] + by + '</span><span class="when">' +
+        esc((g.at || "").replace("T", " ").replace(/:\d\d(\.\d+)?(Z|\+.*)$/, "")) + "</span></div>");
+    }
+  });
+  if (f.phase !== "done") {
+    rows.push('<div class="lg hot"><span class="what">' + esc(f.stateText) + "</span></div>");
+    var rest = PHASES.slice(PHASES.indexOf(f.phase) + 1);
+    if (rest.length) rows.push('<div class="lg todo"><span class="what">' + rest.join(" · ") + "</span></div>");
+  } else {
+    rows.push('<div class="lg ok"><span class="what">⚑ shipped</span></div>');
+  }
+  return '<div class="ledger">' + rows.join("") + "</div>";
+}
+
+function defaultTab(f) {
+  if (f.next.kind === "review") return f.phase === "requirements" ? "spec.md" : "plan.md";
+  var names = Object.keys(f.artifacts || {});
+  return names.length ? names[names.length - 1] : null;
+}
+
+function dossier(f) {
+  var names = Object.keys(f.artifacts || {});
+  var tab = activeTab[f.slug] || defaultTab(f);
+  var html = ledger(f);
+  if (names.length) {
+    html += '<div class="tabs">' + names.map(function (n) {
+      return '<button class="tab' + (n === tab ? " sel" : "") + '" data-slug="' + esc(f.slug) +
+        '" data-tab="' + esc(n) + '">' + esc(n) + "</button>";
+    }).join("") + "</div>";
+    if (tab && f.artifacts[tab] != null)
+      html += '<div class="doc">' + md(f.artifacts[tab]) + "</div>";
+  }
+  if (f.next.cmd) {
+    html += '<div class="next">' + (f.next.hint ? '<span class="hint">' + esc(f.next.hint) + "</span>" : "") +
+      '<button class="cmd" data-cmd="' + esc(f.next.cmd) + '"><span class="pr">❯</span> ' +
+      esc(f.next.cmd) + "</button></div>";
+  }
+  return html;
+}
+
+function strip(f) {
+  var open = !!expanded[f.slug];
+  var kind = f.group === "review" ? "review" : (f.group === "shipped" ? "done" : "run");
+  var sub = f.group === "shipped" ? "all gates passed" : "updated " + esc(f.updatedShort);
+  if (f.track === "quick") sub += " · quick track";
+  var cmdBtn = f.next.cmd
+    ? '<button class="cmd" data-cmd="' + esc(f.next.cmd) + '"><span class="pr">❯</span> ' + esc(f.next.label) + "</button>"
+    : "";
+  return '<div class="strip-wrap">' +
+    '<div class="strip' + (f.group === "review" ? " needs" : "") + (f.group === "shipped" ? " shipped-strip" : "") +
+    '" tabindex="0" role="button" aria-expanded="' + open + '" data-slug="' + esc(f.slug) + '">' +
+    '<span class="chev">▶</span>' +
+    '<span class="slug">' + esc(f.slug) + "</span>" +
+    '<span class="title">' + esc(f.feature) + "</span>" +
+    phaseBar(f) +
+    '<div class="status ' + kind + '"><div class="s1">' + esc(f.stateText) + '</div><div class="s2">' +
+    sub + '</div></div><span class="cmdcol">' + cmdBtn + "</span>" +
+    "</div>" +
+    (open ? '<div class="dossier">' + dossier(f) + "</div>" : "") +
+    "</div>";
+}
+
+function render() {
+  var s = STATE;
+  document.getElementById("h-title").innerHTML = "sdlc // " + esc(s.repo) + '<span class="cursor"></span>';
+  var mode = SERVE ? '<span class="live">live</span>' : '<span class="snap"></span>generated ' + esc(s.generatedAt) + " · snapshot";
+  document.getElementById("h-sub").innerHTML = mode +
+    ' · <span class="hotn">' + s.stats.needsYou + " need you</span> · " + s.stats.inFlight + " in flight · " +
+    s.stats.shipped + " shipped · first-try green " + esc(s.stats.firstTryGreen) + " · " + s.stats.lessons + " lessons";
+  document.getElementById("nav").innerHTML =
+    '<button class="navtab' + (view === "board" ? " sel" : "") + '" data-view="board">board</button>' +
+    '<button class="navtab' + (view === "lessons" ? " sel" : "") + '" data-view="lessons">lessons <span class="n">' +
+    s.lessons.length + "</span></button>";
+  var html = "";
+  if (view === "board") {
+    if (!s.features.length) {
+      html = '<div class="empty">No features on the board.<br><span class="pr">❯</span> /sdlc:requirements &lt;brief&gt; starts the first one.</div>';
+    } else {
+      /* most recently updated first, shipped always last */
+      var byUpdated = function (a, b) { return String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")); };
+      var ordered = s.features.filter(function (f) { return f.group !== "shipped"; }).sort(byUpdated)
+        .concat(s.features.filter(function (f) { return f.group === "shipped"; }).sort(byUpdated));
+      html = '<div class="board">' + ordered.map(strip).join("") + "</div>";
+    }
+  } else {
+    if (!s.lessons.length) {
+      html = '<div class="empty">No lessons yet — the document phase writes them after a feature ships.</div>';
+    } else {
+      html = '<div class="group"><div class="g-head"><span class="g-title">◈ repo knowledge</span>' +
+        '<span class="g-count">loaded at plan time · one fact per file</span><span class="g-rule"></span></div>' +
+        s.lessons.map(function (l) {
+          return '<details class="lesson"' + (expanded["lesson:" + l.name] ? " open" : "") + ' data-lesson="' + esc(l.name) + '">' +
+            "<summary>" + esc(l.name) + '</summary><div class="doc">' + md(l.content) + "</div></details>";
+        }).join("") + "</div>";
+    }
+  }
+  document.getElementById("view").innerHTML = html;
+}
+
+/* events (delegated so re-render keeps working) */
+document.addEventListener("click", function (e) {
+  var cmd = e.target.closest(".cmd");
+  if (cmd) {
+    e.stopPropagation();
+    navigator.clipboard.writeText(cmd.dataset.cmd).then(function () {
+      cmd.classList.add("ok"); setTimeout(function () { cmd.classList.remove("ok"); }, 1200);
+    });
+    return;
+  }
+  var nav = e.target.closest(".navtab");
+  if (nav) { view = nav.dataset.view; location.hash = view === "lessons" ? "lessons" : ""; render(); return; }
+  var tab = e.target.closest(".tab");
+  if (tab) { activeTab[tab.dataset.slug] = tab.dataset.tab; render(); return; }
+  var st = e.target.closest(".strip");
+  if (st) { expanded[st.dataset.slug] = !expanded[st.dataset.slug]; render(); focusStrip(st.dataset.slug); }
+});
+document.addEventListener("toggle", function (e) {
+  var l = e.target.closest && e.target.closest(".lesson");
+  if (l) expanded["lesson:" + l.dataset.lesson] = l.open;
+}, true);
+function strips() { return [].slice.call(document.querySelectorAll(".strip")); }
+function focusStrip(slug) {
+  var el = document.querySelector('.strip[data-slug="' + slug + '"]');
+  if (el) el.focus();
+}
+document.addEventListener("keydown", function (e) {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  var list = strips(), idx = list.indexOf(document.activeElement);
+  if (e.key === "j") { (list[Math.min(idx + 1, list.length - 1)] || list[0]).focus(); e.preventDefault(); }
+  if (e.key === "k") { (list[Math.max(idx - 1, 0)] || list[0]).focus(); e.preventDefault(); }
+  if ((e.key === "Enter" || e.key === " ") && document.activeElement.classList.contains("strip")) {
+    expanded[document.activeElement.dataset.slug] = !expanded[document.activeElement.dataset.slug];
+    var slug = document.activeElement.dataset.slug;
+    render(); focusStrip(slug); e.preventDefault();
+  }
+  if (e.key === "c" && document.activeElement.classList.contains("strip")) {
+    var b = document.activeElement.querySelector(".cmd");
+    if (b) b.click();
+  }
+});
+
+function poll() {
+  fetch("state.json", { cache: "no-store" }).then(function (r) { return r.text(); }).then(function (t) {
+    if (t !== lastPayload) { lastPayload = t; STATE = JSON.parse(t); render(); }
+  }).catch(function () {}).finally(function () { setTimeout(poll, 2500); });
+}
+if (SERVE) { poll(); } else { render(); }
+</script>
+</body>
+</html>

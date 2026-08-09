@@ -1,0 +1,13 @@
+{
+  "name": "sdlc-marketplace",
+  "owner": {
+    "name": "Alex"
+  },
+  "plugins": [
+    {
+      "name": "sdlc",
+      "source": "./plugins/sdlc",
+      "description": "Gated SDLC workflow: requirements → plan → implement → verify → document. File-based state in specs/, hook-enforced gates, and a retro loop that turns experience into lessons and plugin improvements."
+    }
+  ]
+}
