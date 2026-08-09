@@ -69,8 +69,8 @@ def state_text(phase: str, nxt: dict, updated: str, tasks: dict | None = None) -
         return f"shipped {short_date(updated)}".strip()
     verb = {"requirements": "drafting spec", "plan": "planning", "implement": "implementing",
             "verify": "verifying", "document": "documenting"}.get(phase, phase)
-    if phase == "implement" and tasks and tasks.get("total"):
-        return f"{verb} · {tasks['done']}/{tasks['total']} tasks"
+    if phase == "implement" and isinstance(tasks, dict) and tasks.get("total"):
+        return f"{verb} · {tasks.get('done', 0)}/{tasks['total']} tasks"
     return verb
 
 

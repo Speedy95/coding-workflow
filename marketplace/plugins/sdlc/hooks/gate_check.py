@@ -9,12 +9,13 @@ Enforcement model:
   unrelated api/specs/ folder cannot shadow the real root), falling back to the
   session cwd — so the gate holds no matter where the session is rooted.
 - Code changes are allowed only while some feature is in an approved
-  implement/verify/document phase. Edits are additionally scoped to the
-  approved plans' "## Affected files" entries — or, for quick-track features
-  without a plan.md, the spec mini-plan's "Affected files:" line. Scope is the
-  union across approved features that declare one; a feature that declares
-  none contributes nothing (the gate only fails open when NO approved feature
-  declares a scope).
+  implement/verify phase; a document-phase feature unlocks only doc files
+  (.md/.rst/.txt) within its scope — code is frozen once verified. Edits are
+  additionally scoped to the approved plans' "## Affected files" entries — or,
+  for quick-track features without a plan.md, the spec mini-plan's
+  "Affected files:" line. Scope is the union across approved features that
+  declare one; a feature that declares none contributes nothing (the gate only
+  fails open when NO approved feature declares a scope).
 - Bash/PowerShell commands are screened for writes (redirects, tee, sed -i,
   Out-File/Set-Content) AND for destructive operations (rm, mv, cp, truncate,
   dd, git checkout/restore, curl -o, Remove-Item/Move-Item/Copy-Item).
@@ -41,15 +42,22 @@ ALWAYS_ALLOWED_TOP = {"specs", "lessons", "docs", ".claude"}
 ALWAYS_ALLOWED_ROOT_PREFIXES = ("README", "CHANGELOG")
 # Scratch output a gated run legitimately produces (test logs, captured stdout).
 SCRATCH_EXTENSIONS = {".log", ".txt", ".out", ".tmp"}
+# What the document phase may still touch inside its scope (code is frozen).
+DOC_EXTENSIONS = {".md", ".rst", ".txt"}
 
 # `[^->]` still rejects the `->` arrow and a second `>`; digits are allowed
 # through so that `1> file` and `2> file` are screened like a bare `> file`.
 REDIRECT_RE = re.compile(r"(?:^|[^->])>{1,2}\s*([^\s;|&)]+)")
-TEE_RE = re.compile(r"\btee\b(?:\s+-\w+)*\s+([^\s;|&]+)")
-SED_I_RE = re.compile(r"\bsed\b[^;|&]*?-i\S*\s+(?:'[^']*'|\"[^\"]*\"|\S+)\s+([^\s;|&]+)")
+# tee and sed -i write EVERY following file argument, so capture the whole tail
+# of the segment and split it later (a single-token capture missed the rest).
+TEE_RE = re.compile(r"\btee\b((?:\s+[^\s;|&]+)+)")
+SED_I_RE = re.compile(r"\bsed\b[^;|&]*?-i\S*\s+(?:'[^']*'|\"[^\"]*\"|\S+)((?:\s+[^\s;|&]+)+)")
+# The target flag may be spelled -Path, -LiteralPath or -FilePath; any other
+# flag's value must not swallow a following flag (hence the (?!-) guard).
 PS_WRITE_RE = re.compile(
-    r"\b(?:Out-File|Set-Content|Add-Content)\b(?:\s+-(?!Path)\w+(?:\s+\S+)?)*"
-    r"\s+(?:-Path\s+)?[\"']?([^\s\"';|&]+)", re.IGNORECASE)
+    r"\b(?:Out-File|Set-Content|Add-Content)\b"
+    r"(?:\s+-(?!Path\b|LiteralPath\b|FilePath\b)\w+(?:\s+(?!-)[^\s;|&]+)?)*"
+    r"\s+(?:-(?:Path|LiteralPath|FilePath)\s+)?[\"']?([^\s\"';|&]+)", re.IGNORECASE)
 
 SEGMENT_RE = re.compile(r"[;&|\n]+")
 COMMAND_PREFIXES = {"sudo", "command", "env", "time", "nohup", "exec", "&&"}
@@ -99,17 +107,26 @@ def load_json(path: Path):
 
 
 def gate_state(root: Path):
-    """Return (has_features, approved_feature_dirs)."""
+    """Return (has_features, approved_feature_dirs, documenting_feature_dirs).
+
+    Code unlocks only during implement/verify. A document-phase feature is
+    tracked separately: once verification_passed, shipped code must equal
+    verified code, so document only unlocks DOC files within its scope.
+    """
     status_files = list((root / "specs").glob("*/status.json"))
-    approved = []
+    approved, documenting = [], []
     for sf in status_files:
         st = load_json(sf)
         if not isinstance(st, dict):
             continue
         plan_ok = ((st.get("gates") or {}).get("plan_approved") or {}).get("approved") is True
-        if st.get("phase") in ("implement", "verify", "document") and plan_ok:
+        if not plan_ok:
+            continue
+        if st.get("phase") in ("implement", "verify"):
             approved.append(sf.parent)
-    return bool(status_files), approved
+        elif st.get("phase") == "document":
+            documenting.append(sf.parent)
+    return bool(status_files), approved, documenting
 
 
 # ── plan scope ──────────────────────────────────────────────────────────────
@@ -176,11 +193,12 @@ def rel_is_in_scope(rel: str, entries: list[str]) -> bool:
 # ── verdicts ────────────────────────────────────────────────────────────────
 
 BLOCK_NO_APPROVAL = (
-    "SDLC gate: code change blocked - no feature is in an approved implement/verify/"
-    "document phase. The spec and plan must be reviewed and explicitly approved by the "
-    "user in conversation first (per the sdlc-state skill). Edits under specs/, lessons/, "
-    "docs/ and .claude/ are always allowed. Do not bypass this by editing "
-    "status.json - if the gate seems wrong, tell the user."
+    "SDLC gate: code change blocked - no feature is in an approved implement/verify "
+    "phase. (A document-phase feature unlocks only doc files - .md/.rst/.txt - within "
+    "its scope; code is frozen once verified.) The spec and plan must be reviewed and "
+    "explicitly approved by the user in conversation first (per the sdlc-state skill). "
+    "Edits under specs/, lessons/, docs/ and .claude/ are always allowed. Do not "
+    "bypass this by editing status.json - if the gate seems wrong, tell the user."
 )
 BLOCK_OUT_OF_SCOPE = (
     "SDLC gate: '{rel}' is not named in any approved plan's '## Affected files' "
@@ -212,27 +230,41 @@ def check_target(target: Path, cwd: str, scratch_ok: bool = False) -> str | None
         return None
     if "/" not in rel and rel.upper().startswith(ALWAYS_ALLOWED_ROOT_PREFIXES):
         return None
-    # Redirected scratch output (test logs, captured stdout) is not a code change.
-    if scratch_ok and posixpath.splitext(rel)[1].lower() in SCRATCH_EXTENSIONS:
-        return None
-    has_features, approved = gate_state(root)
+    has_features, approved, documenting = gate_state(root)
     if not has_features:
         return None
+    ext = posixpath.splitext(rel)[1].lower()
+    # Document phase: the retro's own DOC work, scoped to the feature — code
+    # stays frozen once verified (shipped must equal verified).
+    if documenting and ext in DOC_EXTENSIONS:
+        entries, any_parseable = _scope_union(documenting)
+        if not any_parseable or rel_is_in_scope(rel, entries):
+            return None
     if not approved:
         return BLOCK_NO_APPROVAL
+    # Redirected scratch output (test logs, captured stdout) is not a code
+    # change — but the exemption applies only once something is approved;
+    # before that, every enumerable write stays gated.
+    if scratch_ok and ext in SCRATCH_EXTENSIONS:
+        return None
+    entries, any_parseable = _scope_union(approved)
+    if not any_parseable:
+        return None  # fail open only when NO approved feature declares a scope
+    if rel_is_in_scope(rel, entries):
+        return None
+    return BLOCK_OUT_OF_SCOPE.format(rel=rel)
+
+
+def _scope_union(feature_dirs) -> tuple[list[str], bool]:
     all_entries, any_parseable = [], False
-    for feature_dir in approved:
+    for feature_dir in feature_dirs:
         entries = affected_entries(feature_dir / "plan.md")
         if not entries:
             entries = mini_plan_entries(feature_dir / "spec.md")
         if entries:
             any_parseable = True
             all_entries.extend(entries)
-    if not any_parseable:
-        return None  # fail open only when NO approved feature declares a scope
-    if rel_is_in_scope(rel, all_entries):
-        return None
-    return BLOCK_OUT_OF_SCOPE.format(rel=rel)
+    return all_entries, any_parseable
 
 
 def check_opaque(cwd: str) -> bool:
@@ -243,10 +275,21 @@ def check_opaque(cwd: str) -> bool:
 
 # ── command screening ───────────────────────────────────────────────────────
 
+# Marks a space inside a quoted path so it survives whitespace tokenization;
+# restored in command_targets before the path is resolved.
+QUOTED_SPACE = "\x00"
+
+
 def _unquote_simple(match: re.Match) -> str:
-    """Keep quoted single-path tokens; blank out quoted code/multi-word strings."""
+    """Keep quoted path-like tokens (spaces sentinel-preserved); blank quoted code."""
     inner = match.group(0)[1:-1]
-    return inner if re.fullmatch(r"[^\s;|&<>]*", inner) else " "
+    if re.fullmatch(r"[^;|&<>]*", inner):
+        return inner.replace(" ", QUOTED_SPACE).replace("\t", QUOTED_SPACE)
+    return " "
+
+
+def _restore_spaces(token: str) -> str:
+    return token.replace(QUOTED_SPACE, " ")
 
 
 def _positionals(args: list[str], value_flags=frozenset()) -> list[str]:
@@ -277,11 +320,14 @@ def _flag_values(args: list[str], flags) -> list[str]:
     return out
 
 
-def segment_targets(segment: str) -> list[tuple[str, str]]:
+def segment_targets(segment: str, cwd: str = ".") -> list[tuple[str, str]]:
     """(target, kind) pairs written or destroyed by one command segment."""
     targets = []
-    for regex in (REDIRECT_RE, TEE_RE, SED_I_RE, PS_WRITE_RE):
+    for regex in (REDIRECT_RE, PS_WRITE_RE):
         targets.extend((m, WRITE) for m in regex.findall(segment))
+    for regex in (TEE_RE, SED_I_RE):
+        for blob in regex.findall(segment):
+            targets.extend((t, WRITE) for t in blob.split() if not t.startswith("-"))
 
     tokens = segment.split()
     for i, token in enumerate(tokens):
@@ -306,7 +352,7 @@ def segment_targets(segment: str) -> list[tuple[str, str]]:
         elif verb == "curl":
             targets.extend((t, WRITE) for t in _flag_values(args, {"-o", "--output"}))
         elif verb == "git":
-            targets.extend(_git_targets(args))
+            targets.extend(_git_targets(args, cwd))
         elif verb in ("remove-item", "move-item"):
             targets.extend((t, DESTROY) for t in _positionals(args, PS_PATH_FLAGS))
             targets.extend((t, DESTROY) for t in _flag_values(args, PS_PATH_FLAGS))
@@ -319,16 +365,31 @@ def segment_targets(segment: str) -> list[tuple[str, str]]:
     return targets
 
 
-def _git_targets(args: list[str]) -> list[tuple[str, str]]:
-    subcommand = next((a for a in args if not a.startswith("-")), "")
+# Global git flags that take a separate value (git -C dir checkout ...) —
+# their value must not be mistaken for the subcommand.
+GIT_VALUE_FLAGS = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path"}
+
+
+def _git_targets(args: list[str], cwd: str = ".") -> list[tuple[str, str]]:
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        i += 2 if args[i] in GIT_VALUE_FLAGS else 1
+    if i >= len(args):
+        return []
+    subcommand, rest = args[i], args[i + 1:]
     if subcommand not in ("checkout", "restore"):
         return []
-    if "--" in args:
-        paths = _positionals(args[args.index("--") + 1:])
+    if "--" in rest:
+        paths = _positionals(rest[rest.index("--") + 1:])
     elif subcommand == "restore":
-        paths = _positionals(args[args.index("restore") + 1:], {"--source", "-s"})
+        paths = _positionals(rest, {"--source", "-s"})
     else:
-        return []  # `git checkout <branch>` names a ref, not a path
+        # git DWIMs `checkout <arg>` into a file revert when <arg> is not a
+        # ref. Approximate that here: screen args that exist as paths
+        # (branch names almost never name an existing file).
+        candidates = _positionals(rest, {"-b", "-B", "--orphan"})
+        paths = [p for p in candidates
+                 if Path(cwd, _restore_spaces(p)).exists()]
     return [(p, DESTROY) for p in paths]
 
 
@@ -351,12 +412,12 @@ def _segments(command: str) -> list[str]:
     return SEGMENT_RE.split(sanitized)
 
 
-def command_targets(command: str) -> list[tuple[str, str]]:
+def command_targets(command: str, cwd: str = ".") -> list[tuple[str, str]]:
     junk = {"/dev/null", "nul", "NUL", "$null", "&1", "&2"}
     targets = []
     for segment in _segments(command):
-        for raw, kind in segment_targets(segment):
-            target = raw.strip("\"'")
+        for raw, kind in segment_targets(segment, cwd):
+            target = _restore_spaces(raw.strip("\"'"))
             if target and target not in junk and not target.startswith("&"):
                 targets.append((target, kind))
     return targets
@@ -384,7 +445,7 @@ def main():
 
     if tool_name in ("Bash", "PowerShell"):
         command = tool_input.get("command") or ""
-        for raw, kind in command_targets(command):
+        for raw, kind in command_targets(command, cwd):
             message = check_target(Path(resolve_shell_path(raw)), cwd, scratch_ok=(kind == WRITE))
             if message:
                 print(message, file=sys.stderr)

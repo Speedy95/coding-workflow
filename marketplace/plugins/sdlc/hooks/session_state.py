@@ -81,8 +81,8 @@ def main():
         except (OSError, json.JSONDecodeError, UnicodeDecodeError):
             continue
         phase = st.get("phase", "?")
-        tasks = st.get("tasks") or {}
-        progress = f" {tasks['done']}/{tasks['total']}" if tasks.get("total") else ""
+        tasks = st.get("tasks") if isinstance(st.get("tasks"), dict) else {}
+        progress = f" {tasks.get('done', 0)}/{tasks['total']}" if tasks.get("total") else ""
         track = f" [{st['track']}]" if st.get("track") == "quick" else ""
         if phase == "done":
             rows.append(f"- {st.get('slug')}: shipped{track}")
