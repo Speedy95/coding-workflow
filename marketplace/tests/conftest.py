@@ -1,4 +1,6 @@
 import json
+import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -37,6 +39,34 @@ Affected files: `taskler.py`, `tests/test_taskler.py`
 """
 
 SPEC_WITHOUT_MINI_PLAN = "# Fix: x\n\n## Problem\nNo mini-plan here.\n"
+
+
+def plan_with(*entries: str) -> str:
+    """A plan.md whose '## Affected files' section lists exactly `entries`."""
+    body = "\n".join(f"- `{entry}` — reason" for entry in entries)
+    return f"# Plan: x\n\n## Approach\nStuff.\n\n## Affected files\n{body}\n\n## Tasks\n- [ ] 1. do it\n"
+
+
+def as_shell_path(path) -> str:
+    """An absolute path spelled the way a shell on this OS hands it to the hook.
+
+    The Bash tool on Windows is Git Bash, where `C:\\repo` is written `/c/repo` —
+    the POSIX drive form the gate has to rewrite before it can resolve a target.
+    """
+    text = str(path).replace("\\", "/")
+    if os.name == "nt" and re.match(r"^[A-Za-z]:/", text):
+        return "/" + text[0].lower() + text[2:]
+    return text
+
+
+def load_hook_module(name: str):
+    """Import a hook script in-process (they are import-safe: main() is guarded)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(f"sdlc_hook_{name}", HOOKS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def run_hook(script: str, payload: dict):
@@ -80,11 +110,12 @@ class SdlcRepo:
         return str(self.path)
 
     def write_feature(self, phase="requirements", spec=False, plan=False,
-                      plan_md=PLAN_WITH_SCOPE, spec_md=None, **kw):
-        fdir = self.path / "specs" / "001-x"
-        fdir.mkdir(exist_ok=True)
-        (fdir / "status.json").write_text(
-            json.dumps(make_status(phase, spec, plan, **kw)), encoding="utf-8")
+                      plan_md=PLAN_WITH_SCOPE, spec_md=None, slug="001-x", **kw):
+        fdir = self.path / "specs" / slug
+        fdir.mkdir(parents=True, exist_ok=True)
+        doc = make_status(phase, spec, plan, **kw)
+        doc["slug"] = slug
+        (fdir / "status.json").write_text(json.dumps(doc), encoding="utf-8")
         if plan_md is not None:
             (fdir / "plan.md").write_text(plan_md, encoding="utf-8")
         if spec_md is not None:

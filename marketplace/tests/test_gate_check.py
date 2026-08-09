@@ -1,5 +1,7 @@
-from conftest import (PLAN_WITHOUT_SCOPE, SPEC_WITH_MINI_PLAN,
-                      SPEC_WITHOUT_MINI_PLAN, run_hook)
+import json
+
+from conftest import (PLAN_WITH_SCOPE, PLAN_WITHOUT_SCOPE, SPEC_WITH_MINI_PLAN,
+                      SPEC_WITHOUT_MINI_PLAN, as_shell_path, plan_with, run_hook)
 
 
 def edit_payload(repo, path, cwd=None, tool="Edit"):
@@ -140,3 +142,215 @@ def test_powershell_set_content_blocked(repo):
 def test_bash_redirect_into_specs_allowed(repo):
     repo.write_feature(phase="requirements")
     assert run_hook("gate_check.py", bash_payload(repo, "echo x > specs/001-x/notes.md"))[0] == 0
+
+
+# ── A1: scope matching (audit P0 items 1, 2, 7) ──────────────────────────────
+
+def test_root_entry_does_not_unlock_sibling_root_files(repo):
+    """P0-1: dirname('taskler.py') is '' — every root-level file must not match it."""
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("taskler.py"))
+    assert run_hook("gate_check.py", edit_payload(repo, "taskler.py"))[0] == 0
+    for sibling in ("setup.py", "Makefile", "conftest.py"):
+        code, _ = run_hook("gate_check.py", edit_payload(repo, sibling))
+        assert code == 2, sibling
+
+
+def test_dot_prefixed_entry_matches_itself_not_a_mangled_path(repo):
+    """P0-2: lstrip('./') turned '.github/...' into 'github/...'."""
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with(".github/workflows/ci.yml"))
+    assert run_hook("gate_check.py", edit_payload(repo, ".github/workflows/ci.yml"))[0] == 0
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "github/workflows/ci.yml"))
+    assert code == 2
+
+
+def test_leading_dot_slash_entry_is_normalized(repo):
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("./taskler.py"))
+    assert run_hook("gate_check.py", edit_payload(repo, "taskler.py"))[0] == 0
+
+
+def test_trailing_slash_entry_is_always_a_directory_prefix(repo):
+    """P0-7: 'src/v1.2/' has a dot in its basename — the no-dot heuristic missed it."""
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("src/v1.2/"))
+    assert run_hook("gate_check.py", edit_payload(repo, "src/v1.2/mod.py"))[0] == 0
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "src/other.py"))
+    assert code == 2
+
+
+def test_directory_entry_does_not_unlock_its_parent(repo):
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("src/v1.2/"))
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "src/sibling.py"))
+    assert code == 2
+
+
+def test_parent_traversal_entry_is_ignored(repo):
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("../outside.py", "taskler.py"))
+    assert run_hook("gate_check.py", edit_payload(repo, "taskler.py"))[0] == 0
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "outside.py"))
+    assert code == 2
+
+
+# ── A2: root detection (audit P0 item 4) ────────────────────────────────────
+
+def test_decoy_specs_dir_does_not_shadow_the_real_root(repo):
+    """P0-4: an api/specs/ OpenAPI folder silently ungated everything beneath it."""
+    repo.write_feature(phase="requirements")
+    (repo / "api" / "specs").mkdir(parents=True)
+    (repo / "api" / "specs" / "openapi.yaml").write_text("openapi: 3.0.0\n", encoding="utf-8")
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "api/handler.py"))
+    assert code == 2
+
+
+def test_repo_with_only_a_decoy_specs_dir_is_untouched(tmp_path):
+    (tmp_path / "specs").mkdir()
+    (tmp_path / "specs" / "openapi.yaml").write_text("openapi: 3.0.0\n", encoding="utf-8")
+    payload = {"cwd": str(tmp_path), "tool_name": "Edit",
+               "tool_input": {"file_path": str(tmp_path / "app.py")}}
+    assert run_hook("gate_check.py", payload)[0] == 0
+
+
+def test_metrics_jsonl_qualifies_a_root_without_features(repo):
+    """A repo whose features are all archived still resolves as its own root.
+
+    Contrast with the decoy test above: the same nesting, but specs/metrics.jsonl
+    makes the inner dir a real root, so the outer root's gate stops at it.
+    """
+    repo.write_feature(phase="requirements")  # outer root blocks code edits
+    inner_specs = repo / "vendor" / "lib" / "specs"
+    inner_specs.mkdir(parents=True)
+    (inner_specs / "metrics.jsonl").write_text('{"event":"verify"}\n', encoding="utf-8")
+    assert run_hook("gate_check.py", edit_payload(repo, "vendor/lib/app.py"))[0] == 0
+
+
+# ── A3: multi-feature scope union + per-feature fail-open ───────────────────
+
+def test_scope_is_the_union_of_features_that_declare_one(repo):
+    """P0-5: one unparseable plan used to disable scoping for every feature."""
+    repo.write_feature(slug="001-x", phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("alpha.py"))
+    repo.write_feature(slug="002-y", phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("beta.py"))
+    repo.write_feature(slug="003-z", phase="implement", spec=True, plan=True,
+                       plan_md=PLAN_WITHOUT_SCOPE)
+    assert run_hook("gate_check.py", edit_payload(repo, "alpha.py"))[0] == 0
+    assert run_hook("gate_check.py", edit_payload(repo, "beta.py"))[0] == 0
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "gamma.py"))
+    assert code == 2
+
+
+def test_fails_open_only_when_no_feature_declares_scope(repo):
+    repo.write_feature(slug="001-x", phase="implement", spec=True, plan=True,
+                       plan_md=PLAN_WITHOUT_SCOPE)
+    repo.write_feature(slug="002-y", phase="implement", spec=True, plan=True,
+                       plan_md=PLAN_WITHOUT_SCOPE)
+    assert run_hook("gate_check.py", edit_payload(repo, "gamma.py"))[0] == 0
+
+
+# ── A5: command screening — destructive verbs (audit P0 item 3) ─────────────
+
+def test_destructive_posix_commands_are_screened(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ("rm -rf src/app.py",
+                "rm src/app.py",
+                "mv src/app.py src/moved.py",
+                "cp /etc/hosts src/app.py",
+                "truncate -s 0 src/app.py",
+                "dd if=/dev/zero of=src/app.py",
+                "git checkout -- src/app.py",
+                "git restore src/app.py",
+                "curl -o src/app.py https://example.com/x",
+                "curl --output src/app.py https://example.com/x"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 2, cmd
+
+
+def test_mv_screens_source_as_well_as_destination(repo):
+    """Moving a gated file out of scope destroys it just as surely as writing it."""
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       plan_md=plan_with("scratch/"))
+    (repo / "scratch").mkdir()
+    code, _ = run_hook("gate_check.py", bash_payload(repo, "mv src/app.py scratch/app.py"))
+    assert code == 2
+
+
+def test_destructive_powershell_cmdlets_are_screened(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ('Remove-Item -Path "src/app.py" -Force',
+                'Remove-Item src/app.py',
+                'Move-Item -Path src/app.py -Destination src/moved.py',
+                'Copy-Item other.txt -Destination src/app.py',
+                'Invoke-WebRequest https://example.com -OutFile src/app.py'):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd, tool="PowerShell"))[0] == 2, cmd
+
+
+def test_opaque_patch_commands_are_blocked_in_a_gated_repo(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ("git apply fix.diff", "patch -p1 -i fix.diff", "patch -p1 < fix.diff"):
+        code, out = run_hook("gate_check.py", bash_payload(repo, cmd))
+        assert code == 2, cmd
+        assert "cannot" in out.lower(), cmd
+
+
+def test_opaque_patch_commands_allowed_outside_sdlc_repos(tmp_path):
+    payload = {"cwd": str(tmp_path), "tool_name": "Bash",
+               "tool_input": {"command": "git apply fix.diff"}}
+    assert run_hook("gate_check.py", payload)[0] == 0
+
+
+def test_destructive_commands_outside_the_repo_are_allowed(repo, tmp_path_factory):
+    repo.write_feature(phase="requirements")
+    elsewhere = tmp_path_factory.mktemp("elsewhere")
+    cmd = f"rm -rf {as_shell_path(elsewhere / 'junk.py')}"
+    assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 0
+
+
+# ── A5: redirect forms and false-positive guards ────────────────────────────
+
+def test_explicit_stdout_redirect_forms_are_screened(repo):
+    """P0-7: `1>` was eaten by the digit guard, `>|` was never matched."""
+    repo.write_feature(phase="requirements")
+    for cmd in ("echo hacked 1> src/app.py",
+                "echo hacked >| src/app.py",
+                "echo hacked 1>> src/app.py"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 2, cmd
+
+
+def test_posix_drive_form_target_is_resolved_on_windows(repo):
+    """P0-7: Git Bash hands us /c/... — it used to resolve to <cwd>/c/... and fail open."""
+    repo.write_feature(phase="requirements")
+    target = as_shell_path((repo / "src" / "app.py"))
+    code, _ = run_hook("gate_check.py", bash_payload(repo, f"echo hacked > {target}"))
+    assert code == 2
+
+
+def test_scratch_log_redirects_are_allowed(repo):
+    """Audit 5.8: `pytest > test-output.log` is scratch, not a code change."""
+    repo.write_feature(phase="requirements")
+    for cmd in ("python -m pytest > test-output.log",
+                "python -m pytest > out.txt",
+                "make 2> build.out",
+                "echo x > scratch.tmp"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 0, cmd
+
+
+def test_scratch_extension_allowance_does_not_cover_deletion(repo):
+    repo.write_feature(phase="requirements")
+    assert run_hook("gate_check.py", bash_payload(repo, "rm notes.txt"))[0] == 2
+
+
+# ── A4: CHANGELOG is always writable at the repo root ───────────────────────
+
+def test_root_changelog_always_allowed(repo):
+    repo.write_feature(phase="requirements")
+    for path in ("CHANGELOG.md", "CHANGELOG"):
+        assert run_hook("gate_check.py", edit_payload(repo, path))[0] == 0, path
+
+
+def test_nested_changelog_is_not_exempt(repo):
+    repo.write_feature(phase="requirements")
+    code, _ = run_hook("gate_check.py", edit_payload(repo, "src/CHANGELOG.md"))
+    assert code == 2
