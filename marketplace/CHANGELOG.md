@@ -1,5 +1,94 @@
 # Changelog — sdlc plugin
 
+## 1.2.0 (2026-08-09) — honest gate
+
+The enforcement layer now does what the docs claimed. Every fix below closes a
+bug that was confirmed by executing a payload against v1.1.0 (analysis #2, P0
+items 1–8). The suite grew 36 → 118 cases, mostly to cover blind spots that let
+these through.
+
+**Over-allowing (the gate said no and meant yes):**
+- A root-level entry in `## Affected files` (`taskler.py` — nearly every plan
+  has one) unlocked **the entire repo root**: `posixpath.dirname` returns `""`
+  for it and every root-level file matched that empty directory. Empty
+  dirnames are no longer collected, and an explicit directory entry no longer
+  unlocks its parent either.
+- Deletion, move, copy and download were **entirely ungated** — `rm`, `mv`,
+  `cp`, `truncate`, `dd`, `git checkout -- <path>`, `git restore`, `curl -o`,
+  `Remove-Item`, `Move-Item`, `Copy-Item`, `Invoke-WebRequest -OutFile` all
+  passed the Bash screen. Deleting a gated file is now a gated operation.
+  `git apply` and `patch`, whose targets cannot be enumerated, are refused
+  inside a gated repo — use Edit/Write, which is checked per file.
+- **Any unrelated `specs/` directory disabled gating beneath it** (a vendored
+  `api/specs/` of OpenAPI fixtures was enough). A directory now qualifies as
+  an SDLC root only if `specs/` holds `metrics.jsonl` or `*/status.json`; the
+  walk continues past non-qualifying ones. Same rule in the SessionStart hook.
+- One approved feature with an unparseable plan **switched scoping off for
+  every other feature**. Scope is now the union of the features that declare
+  one; the gate fails open only when none does.
+- `1> file` was eaten by the redirect regex's digit guard and `>| file` was
+  never matched at all; both are screened now, as is `2> file`.
+- On Windows, Git Bash's `/c/Users/...` form resolved to `<cwd>/c/Users/...`
+  and fell open. Drive-letter paths are rewritten before resolving.
+
+**Over-blocking (the gate refused legitimate work):**
+- `phase: document` was not in the approved set, so **the retro was blocked
+  from doing its own job** — the skill instructed exactly the edits the gate
+  refused. `document` now unlocks like implement/verify, scoped to the same
+  plan. Root-level `CHANGELOG*` joins `README*` as always-writable.
+- `lstrip("./")` is a character-set strip: it mangled `.github/workflows/ci.yml`
+  into `github/...`, so the listed file was blocked and a path that does not
+  exist was allowed. Now a single `removeprefix("./")`; entries containing
+  `..` are dropped rather than silently rewritten to some other in-repo path.
+- A directory entry with a dot in its name (`src/v1.2/`) never matched as a
+  directory. A trailing slash now always means "directory prefix"; the
+  no-dot heuristic remains only as the fallback for entries written without one.
+- Redirecting scratch output (`pytest > test-output.log`) was blocked as a
+  code change. **[DECIDE]** Redirect-family targets ending in
+  `.log`/`.txt`/`.out`/`.tmp` are allowed; destructive verbs get no such pass
+  (`rm notes.txt` is still gated).
+
+**State validation** (`validate_status.py`) checked shape but not invariants —
+it accepted `phase: implement` with `plan_approved: false`, which is precisely
+the state the edit gate reads. It now also rejects done without
+`docs_complete`, a slug that does not match its own directory or the schema
+pattern, and an `updatedAt` of `"yesterday"`. `schema/status.schema.json` was
+authoritative in name only (nothing loaded it, and it had already drifted from
+the hook's copy): the hook now reads the phase enum, track enum, gate names and
+slug pattern **from the schema at start-up**, falling back to a mirrored copy
+only if it cannot be read — and a test asserts the two agree. The PostToolUse
+matcher covers `NotebookEdit` as well.
+
+**Smaller fixes:** an unrecognised phase was reported as "shipped" by the
+SessionStart hook (now flagged as unrecognised, with no resume hint); that hook
+crashed with `UnicodeEncodeError` on an ascii-only console because its board
+lines contain an em-dash; the dashboard now renders a pending `REVIEW.md` as a
+readable artifact and `/sdlc:status` mentions one when present; the
+requirements eval grader now requires an unattended run to leave a `REVIEW.md`
+ending in the approve line. `/sdlc:dashboard`'s frontmatter was invalid YAML
+(`argument-hint: [--serve] [output path]` — two flow sequences on one line), so
+the command loaded with *no* metadata at all, description included; both
+manifests now pass `claude plugin validate --strict`, which is worth adding to
+CI.
+
+**[DECIDE] defaults applied** (standing directive — implemented, not asked):
+- Scope stays a **union across concurrently approved features**. Attributing an
+  edit to one particular feature is unknowable at hook level, so two approved
+  features widen the allowed set; documented in the README's Enforcement
+  section rather than papered over.
+- The document phase gets plan-scoped edit rights plus root `CHANGELOG*`.
+- Scratch redirect allowlist is exactly `.log`, `.txt`, `.out`, `.tmp`.
+
+**Residual gaps knowingly left** (unchanged or newly documented):
+- Writes hidden inside quoted inline code (`python -c "..."`) are not caught.
+- `cd dir && ...` compounds: relative targets are judged against the tool
+  call's cwd, not the cd'd directory — can over- or under-block.
+- `status.json` written via Bash bypasses PostToolUse validation entirely.
+- `specs/archive/**` is deliberately excluded from validation (frozen history).
+- A repo whose features are *all* archived qualifies as a root only via
+  `specs/metrics.jsonl`.
+- Shell aliases for the destructive cmdlets (`ri`, `del`, `mi`) are unscreened.
+
 ## 1.1.0 (2026-08-03) — OKF-aligned lessons + async review questionnaires
 
 - **Lessons are now OKF-aligned** (Google's Open Knowledge Format, v0.1):

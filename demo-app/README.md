@@ -37,6 +37,7 @@ asking Claude to edit `taskler.py` before approving one.
 
 ## Demo feature ideas
 
-- Add due dates to tasks (`add --due 2026-08-15`, show and sort in `list`)
+Three features already shipped through the workflow (due dates, `list --all`
+ordering, `remove`) — see `specs/`. Still open:
+
 - Add priorities (high/normal/low) with sorting
-- `remove` command with confirmation

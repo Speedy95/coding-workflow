@@ -4,14 +4,17 @@ A gated, self-improving SDLC workflow for Claude Code, packaged as a shareable
 plugin, plus a demo repository. (Formerly `sdlc-workflow`.)
 
 ```
-coding-workflow/       # this repo: program docs + specs (inner repos ignored)
-├── marketplace/       # git repo: the shareable plugin marketplace (plugins/sdlc)
-├── demo-app/          # git repo: taskler demo (three features shipped through the workflow)
+coding-workflow/       # single repo (monorepo since 2026-08-09)
+├── marketplace/       # the shareable plugin marketplace (plugins/sdlc)
+├── demo-app/          # taskler demo (three features shipped through the workflow)
 ├── specs/             # improvement-program specs (orchestrator + units A-D)
 ├── IMPROVEMENTS.md    # improvement review that produced v1.0.0
 ├── IMPROVEMENTS-2.md  # full analysis #2 (v1.1.0) that produced the unit specs
 └── design-candidates/ # dashboard design exploration (reference)
 ```
+
+Pre-monorepo commit history of `marketplace/` and `demo-app/` is preserved
+in local `.git-bundles/` (untracked).
 
 ## The workflow
 
@@ -53,14 +56,30 @@ new session automatically.
 
 - **Edit gate** (PreToolUse on Edit/Write/NotebookEdit/Bash/PowerShell):
   code changes are blocked unless a feature is in an approved
-  implement/verify phase, and are scoped to the approved plan's
-  `## Affected files`. Bash/PowerShell commands are screened for write
-  patterns (documented residual gap: writes hidden inside quoted inline
-  code). Inert in repos without `specs/`.
-- **State validation** (PostToolUse): every `specs/*/status.json` write is
-  checked against `schema/status.schema.json`.
-- 32-case pytest suite covers the hooks and generator (`marketplace/tests`,
-  CI on Ubuntu + Windows).
+  implement/verify/document phase, and are scoped to the approved plan's
+  `## Affected files`. Bash/PowerShell commands are screened both for writes
+  (redirects, tee, `sed -i`, Out-File/Set-Content) and for destructive
+  operations (`rm`, `mv`, `cp`, `truncate`, `dd`, `git checkout/restore`,
+  `curl -o`, Remove-/Move-/Copy-Item); `git apply` and `patch` are refused
+  inside a gated repo because their targets cannot be enumerated.
+- **Scope is the union across concurrently approved features.** Which feature
+  an edit belongs to is unknowable at hook level, so two approved features
+  widen the allowed set. A feature that declares no scope contributes nothing;
+  the gate only stops scoping when *no* approved feature declares one.
+- A repo counts as SDLC-managed only when a `specs/` directory actually holds
+  board state (`metrics.jsonl` or `*/status.json`) — an unrelated `api/specs/`
+  folder no longer shadows the real root. Inert in repos without one.
+- **State validation** (PostToolUse on Edit/Write/NotebookEdit): every
+  `specs/*/status.json` write is checked against `schema/status.schema.json`
+  — shape plus invariants (implement/verify/document require an approved plan
+  gate, done requires docs_complete, slug matches its directory, updatedAt is
+  a real timestamp).
+- Documented residual gaps: writes hidden inside quoted inline code (e.g.
+  `python -c "..."`); `cd dir && ...` compounds (relative targets are judged
+  against the tool call's cwd); status.json written via Bash is unvalidated;
+  redirects to `.log/.txt/.out/.tmp` scratch files are allowed by design.
+- 118-case pytest suite covers the hooks and generator (`marketplace/tests`,
+  CI on Ubuntu + Windows), including the full phase x file-class gate matrix.
 
 Prerequisite: `python` on PATH (hook scripts are stdlib-only). A missing
 python makes hooks noisy but never blocks work.
@@ -69,11 +88,14 @@ python makes hooks noisy but never blocks work.
 
 ```
 claude
-> /plugin marketplace add C:\Users\Alex\PycharmProjects\sdlc-workflow\marketplace
+> /plugin marketplace add C:\Users\Alex\PycharmProjects\coding-workflow\marketplace
 > /plugin install sdlc@sdlc-marketplace
 ```
 
-For a team: push `marketplace/` to GitHub and `add org/repo`.
+For a team: GitHub marketplace installs expect `.claude-plugin/marketplace.json`
+at the repo root — since this is a monorepo, either split `marketplace/` out
+into its own repo at that point (history is in `.git-bundles/`), or keep using
+local-path installs.
 
 Two operational notes (learned the hard way):
 - Plugin content loads at **session start** — after changing the plugin,
@@ -94,7 +116,8 @@ Two operational notes (learned the hard way):
 
 ## Try the demo
 
-`demo-app/` shipped its first feature (due dates) through the full workflow —
-spec, plan, 15 green tests, adversarial review, reconciled docs, one lesson.
-Open its `dashboard.html` or run `/sdlc:requirements <brief>` inside it to
-continue.
+`demo-app/` has shipped three features through the workflow — due dates (full
+track), `list --all` ordering (quick track) and `remove` (full track) — each
+with spec, plan where applicable, green tests, adversarial review, reconciled
+docs and lessons. Open its `dashboard.html` or run `/sdlc:requirements <brief>`
+inside it to continue.

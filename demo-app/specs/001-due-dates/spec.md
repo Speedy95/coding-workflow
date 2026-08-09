@@ -1,5 +1,8 @@
 # Add due dates to tasks
 
+> Pre-1.0 spec format (R-IDs, no EARS acceptance criteria) — kept as a
+> historical artifact rather than retrofitted.
+
 ## Problem
 Tasks in taskler have no notion of time. Everything sits in one undifferentiated
 list, so the user can't see what needs doing soon versus someday — the most
