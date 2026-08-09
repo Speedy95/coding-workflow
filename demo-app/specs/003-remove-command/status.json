@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "feature": "Add a remove command",
+  "slug": "003-remove-command",
+  "phase": "done",
+  "track": "full",
+  "tasks": { "done": 3, "total": 3 },
+  "verifyAttempts": 1,
+  "gates": {
+    "spec_approved":       { "approved": true, "by": "speedy", "at": "2026-08-03T08:04:18Z" },
+    "plan_approved":       { "approved": true, "by": "speedy (standing directive)", "at": "2026-08-03T08:09:39Z" },
+    "verification_passed": { "approved": true, "by": "sdlc-verify", "at": "2026-08-03T08:14:33Z" },
+    "docs_complete":       { "approved": true, "by": "sdlc-document", "at": "2026-08-03T08:17:00Z" }
+  },
+  "artifacts": {
+    "spec": "spec.md",
+    "plan": "plan.md",
+    "verification": "verification.md"
+  },
+  "updatedAt": "2026-08-03T08:17:00Z"
+}

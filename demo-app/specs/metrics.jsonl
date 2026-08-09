@@ -1,0 +1,6 @@
+{"at": "2026-08-02T23:10:00Z", "slug": "001-due-dates", "event": "verify", "testsGreenFirstTry": true, "reviewFindings": 3, "planRevisions": 0}
+{"at": "2026-08-02T23:13:00Z", "slug": "001-due-dates", "event": "done", "lessonsWritten": 1}
+{"at": "2026-08-03T07:47:06Z", "slug": "002-list-all-done-last", "event": "verify", "testsGreenFirstTry": true, "reviewFindings": 1, "planRevisions": 0, "coverage": 100}
+{"at": "2026-08-03T07:49:30Z", "slug": "002-list-all-done-last", "event": "done", "lessonsWritten": 0}
+{"at": "2026-08-03T08:14:33Z", "slug": "003-remove-command", "event": "verify", "testsGreenFirstTry": true, "reviewFindings": 5, "planRevisions": 0, "coverage": 100}
+{"at": "2026-08-03T08:17:00Z", "slug": "003-remove-command", "event": "done", "lessonsWritten": 1}

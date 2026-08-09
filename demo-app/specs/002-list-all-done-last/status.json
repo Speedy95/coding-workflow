@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "feature": "Fix: list --all orders completed tasks into the dated block",
+  "slug": "002-list-all-done-last",
+  "phase": "done",
+  "track": "quick",
+  "tasks": { "done": 3, "total": 3 },
+  "verifyAttempts": 1,
+  "gates": {
+    "spec_approved":       { "approved": true, "by": "speedy", "at": "2026-08-03T07:43:39Z" },
+    "plan_approved":       { "approved": true, "by": "speedy", "at": "2026-08-03T07:43:39Z" },
+    "verification_passed": { "approved": true, "by": "sdlc-verify", "at": "2026-08-03T07:47:06Z" },
+    "docs_complete":       { "approved": true, "by": "sdlc-document", "at": "2026-08-03T07:49:30Z" }
+  },
+  "artifacts": {
+    "spec": "spec.md",
+    "plan": "spec.md#mini-plan",
+    "verification": "verification.md"
+  },
+  "updatedAt": "2026-08-03T07:49:30Z"
+}

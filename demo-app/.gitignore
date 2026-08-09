@@ -1,0 +1,6 @@
+__pycache__/
+.pytest_cache/
+tasks.json
+dashboard.html
+.idea/
+*.iml
