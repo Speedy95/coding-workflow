@@ -56,12 +56,16 @@ new session automatically.
 
 - **Edit gate** (PreToolUse on Edit/Write/NotebookEdit/Bash/PowerShell):
   code changes are blocked unless a feature is in an approved
-  implement/verify/document phase, and are scoped to the approved plan's
-  `## Affected files`. Bash/PowerShell commands are screened both for writes
-  (redirects, tee, `sed -i`, Out-File/Set-Content) and for destructive
-  operations (`rm`, `mv`, `cp`, `truncate`, `dd`, `git checkout/restore`,
-  `curl -o`, Remove-/Move-/Copy-Item); `git apply` and `patch` are refused
-  inside a gated repo because their targets cannot be enumerated.
+  implement/verify phase, and are scoped to the approved plan's
+  `## Affected files`. The document phase unlocks only doc files
+  (`.md/.rst/.txt`) within its scope — verified code stays frozen, so
+  shipped equals verified. Bash/PowerShell commands are screened both for
+  writes (redirects, tee, `sed -i`, Out-File/Set-Content, incl.
+  -LiteralPath/-FilePath and quoted paths with spaces) and for destructive
+  operations (`rm`, `mv`, `cp`, `truncate`, `dd`, `git checkout/restore` —
+  incl. `git -C` and no-`--` pathspec forms — `curl -o`,
+  Remove-/Move-/Copy-Item); `git apply` and `patch` are refused inside a
+  gated repo because their targets cannot be enumerated.
 - **Scope is the union across concurrently approved features.** Which feature
   an edit belongs to is unknowable at hook level, so two approved features
   widen the allowed set. A feature that declares no scope contributes nothing;
@@ -77,12 +81,14 @@ new session automatically.
 - Documented residual gaps: writes hidden inside quoted inline code (e.g.
   `python -c "..."`); `cd dir && ...` compounds (relative targets are judged
   against the tool call's cwd); status.json written via Bash is unvalidated;
-  redirects to `.log/.txt/.out/.tmp` scratch files are allowed by design.
-- 118-case pytest suite covers the hooks and generator (`marketplace/tests`,
+  redirects to `.log/.txt/.out/.tmp` scratch files are allowed by design —
+  but only while a feature is approved.
+- 135-case pytest suite covers the hooks and generator (`marketplace/tests`,
   CI on Ubuntu + Windows), including the full phase x file-class gate matrix.
 
-Prerequisite: `python` on PATH (hook scripts are stdlib-only). A missing
-python makes hooks noisy but never blocks work.
+Prerequisite: `python` or `python3` on PATH (hook scripts are stdlib-only;
+the hook command tries `python` first, then `python3`). Neither present
+makes hooks noisy but never blocks work.
 
 ## Install & upgrade
 

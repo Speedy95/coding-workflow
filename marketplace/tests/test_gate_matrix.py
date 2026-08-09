@@ -15,6 +15,7 @@ from conftest import plan_with, run_hook
 ALLOW, BLOCK = 0, 2
 
 IN_SCOPE = "taskler.py"
+IN_SCOPE_DOC = "tests/notes.md"   # doc-extension file inside the plan's scope
 OUT_OF_SCOPE = "src/unrelated.py"
 SPECS_FILE = "specs/001-x/notes.md"
 ROOT_CHANGELOG = "CHANGELOG.md"
@@ -26,20 +27,21 @@ PLAN_APPROVED = {"requirements": False, "plan": False, "implement": True,
 
 # phase -> {target: expected exit code}
 EDIT_MATRIX = {
-    "requirements": {IN_SCOPE: BLOCK, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
-    "plan":         {IN_SCOPE: BLOCK, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
-    "implement":    {IN_SCOPE: ALLOW, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
-    "verify":       {IN_SCOPE: ALLOW, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
-    # document must be able to do the retro's own work, scoped like implement
-    "document":     {IN_SCOPE: ALLOW, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
-    # a shipped feature re-locks the code
-    "done":         {IN_SCOPE: BLOCK, OUT_OF_SCOPE: BLOCK, SPECS_FILE: ALLOW,
-                     ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    "requirements": {IN_SCOPE: BLOCK, IN_SCOPE_DOC: BLOCK, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    "plan":         {IN_SCOPE: BLOCK, IN_SCOPE_DOC: BLOCK, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    "implement":    {IN_SCOPE: ALLOW, IN_SCOPE_DOC: ALLOW, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    "verify":       {IN_SCOPE: ALLOW, IN_SCOPE_DOC: ALLOW, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    # document does the retro's own DOC work, in scope — but code stays frozen
+    # once verified: shipped must equal verified (review finding, v1.2.1)
+    "document":     {IN_SCOPE: BLOCK, IN_SCOPE_DOC: ALLOW, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
+    # a shipped feature re-locks everything
+    "done":         {IN_SCOPE: BLOCK, IN_SCOPE_DOC: BLOCK, OUT_OF_SCOPE: BLOCK,
+                     SPECS_FILE: ALLOW, ROOT_CHANGELOG: ALLOW, ROOT_README: ALLOW},
 }
 
 

@@ -139,6 +139,100 @@ def test_powershell_set_content_blocked(repo):
     assert code == 2
 
 
+# ── review-fix regressions (v1.2.1) ─────────────────────────────────────────
+
+def test_git_global_flags_do_not_shadow_the_subcommand(repo):
+    repo.write_feature(phase="requirements")
+    (repo / "src" / "app.py").write_text("", encoding="utf-8")
+    for cmd in ("git -C . restore src/app.py",
+                "git -C . checkout -- src/app.py",
+                "git --git-dir x checkout -- src/app.py"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 2, cmd
+
+
+def test_git_checkout_pathspec_without_dashes_is_screened(repo):
+    """git's DWIM turns `checkout <existing-file>` into a revert."""
+    repo.write_feature(phase="requirements")
+    (repo / "src" / "app.py").write_text("", encoding="utf-8")
+    assert run_hook("gate_check.py", bash_payload(repo, "git checkout src/app.py"))[0] == 2
+
+
+def test_git_checkout_branch_name_is_not_a_path(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ("git checkout main", "git checkout -b feature-x"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 0, cmd
+
+
+def test_quoted_paths_with_spaces_are_screened(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ('echo hacked > "my dir/app.py"', 'rm "my dir/app.py"',
+                'Remove-Item -Path "my dir/app.py"'):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 2, cmd
+
+
+def test_quoted_code_strings_are_still_ignored(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ('python -c "print(1 if 2 > 1 else 0)"',
+                'git commit -m "fix: a > b comparison"'):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 0, cmd
+
+
+def test_powershell_literalpath_and_filepath_are_screened(repo):
+    repo.write_feature(phase="requirements")
+    for cmd in ("Set-Content -LiteralPath src/app.py -Value out.log",
+                "Out-File -FilePath src/app.py -InputObject x",
+                "Add-Content -LiteralPath src/app.py hacked"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd, tool="PowerShell"))[0] == 2, cmd
+
+
+def test_sed_and_tee_screen_every_file_argument(repo):
+    repo.write_feature(phase="requirements")
+    assert run_hook("gate_check.py",
+                    bash_payload(repo, "sed -i 's/a/b/' notes.log src/app.py"))[0] == 2
+    assert run_hook("gate_check.py",
+                    bash_payload(repo, "cat x | tee first.log src/app.py"))[0] == 2
+
+
+def test_scratch_extensions_stay_gated_before_approval(repo):
+    """v1.1.0 guarantee restored: with nothing approved, every write is gated."""
+    repo.write_feature(phase="requirements")
+    for cmd in ("pip freeze > requirements.txt", "echo x > CMakeLists.txt"):
+        assert run_hook("gate_check.py", bash_payload(repo, cmd))[0] == 2, cmd
+
+
+def test_hooks_json_command_survives_missing_python(repo):
+    """The manifest command must fall back to python3 (macOS/Ubuntu have no python)."""
+    import json as _json
+    from conftest import HOOKS
+    manifest = _json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+    commands = [h["command"] for group in manifest["hooks"].values()
+                for entry in group for h in entry["hooks"]]
+    assert commands, "no hook commands found"
+    for command in commands:
+        assert "python3" in command, f"no python3 fallback in: {command}"
+
+
+def test_hooks_json_gate_command_blocks_via_shell(repo):
+    """Run the manifest's literal PreToolUse command through a real shell."""
+    import json as _json
+    import os
+    import shutil
+    import subprocess
+    from conftest import HOOKS
+    bash = shutil.which("bash")
+    if not bash:
+        import pytest
+        pytest.skip("no bash on PATH")
+    manifest = _json.loads((HOOKS / "hooks.json").read_text(encoding="utf-8"))
+    command = manifest["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+    repo.write_feature(phase="requirements")
+    payload = _json.dumps(edit_payload(repo, "src/app.py"))
+    env = dict(os.environ, CLAUDE_PLUGIN_ROOT=str(HOOKS.parent))
+    proc = subprocess.run([bash, "-c", command], input=payload,
+                          capture_output=True, text=True, env=env, timeout=30)
+    assert proc.returncode == 2, proc.stderr + proc.stdout
+
+
 def test_bash_redirect_into_specs_allowed(repo):
     repo.write_feature(phase="requirements")
     assert run_hook("gate_check.py", bash_payload(repo, "echo x > specs/001-x/notes.md"))[0] == 0
@@ -328,8 +422,13 @@ def test_posix_drive_form_target_is_resolved_on_windows(repo):
 
 
 def test_scratch_log_redirects_are_allowed(repo):
-    """Audit 5.8: `pytest > test-output.log` is scratch, not a code change."""
-    repo.write_feature(phase="requirements")
+    """Audit 5.8: `pytest > test-output.log` is scratch, not a code change.
+
+    Only once a feature is approved, though — before approval every enumerable
+    write stays gated (review v1.2.1; see
+    test_scratch_extensions_stay_gated_before_approval).
+    """
+    repo.write_feature(phase="implement", spec=True, plan=True)
     for cmd in ("python -m pytest > test-output.log",
                 "python -m pytest > out.txt",
                 "make 2> build.out",

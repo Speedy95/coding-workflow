@@ -1,5 +1,31 @@
 # Changelog — sdlc plugin
 
+## 1.2.1 (2026-08-09) — review fixes on the v1.2.0 gate
+
+A high-effort adversarial code review of v1.2.0 confirmed 10 findings; all
+fixed (135 tests, +17):
+
+- **Portability**: hooks.json now falls back to `python3` when `python` is
+  absent (stock macOS/Ubuntu) — before, the entire enforcement layer was
+  silently void on those platforms.
+- **Bash/PowerShell screen bypasses closed**: `git -C <dir> checkout/restore`
+  (global value flags shadowed the subcommand), `git checkout <file>` without
+  `--` (git's DWIM makes it a revert — now screened when the arg exists as a
+  file), quoted paths containing spaces (were blanked before screening; now
+  sentinel-preserved), `Set-Content/Out-File -LiteralPath/-FilePath`
+  (only `-Path` was recognized), and multi-target `sed -i`/`tee` (only the
+  first file was captured).
+- **Scratch-extension exemption narrowed**: it now applies only AFTER a
+  feature is approved — with nothing approved, `echo x > requirements.txt`
+  blocks again (v1.1.0 guarantee restored).
+- **Document phase narrowed to docs**: verified code stays frozen — document
+  unlocks only `.md/.rst/.txt` within the feature's scope, so shipped always
+  equals verified. (Reverts half of v1.2.0's document unlock; the phase can
+  still do all its retro work.)
+- SessionStart board and dashboard no longer crash on a `tasks` object
+  missing `done`; the dashboard XSS test's vacuous `or True` assertion is now
+  a real assertion.
+
 ## 1.2.0 (2026-08-09) — honest gate
 
 The enforcement layer now does what the docs claimed. Every fix below closes a

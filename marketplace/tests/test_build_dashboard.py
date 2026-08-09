@@ -33,7 +33,8 @@ def test_snapshot_escapes_html_in_state(repo):
     fdir.mkdir(exist_ok=True)
     (fdir / "status.json").write_text(json.dumps(doc), encoding="utf-8")
     html = build(repo)
-    assert "<script>alert(1)</script>" not in html.split("<script>", 1)[1] or True
+    # the raw payload must never appear once the page's own <script> opens
+    assert "<script>alert(1)</script>" not in html.split("<script>", 1)[1]
     # the state JSON is embedded with </ escaped so it cannot close the script tag
     assert "<\\/script>" in html
 

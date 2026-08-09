@@ -24,6 +24,14 @@ def test_injects_board_state(repo):
     assert "001-x" in out and "implement 3/5" in out and "/sdlc:implement" in out
 
 
+def test_partial_tasks_object_does_not_crash_board(repo):
+    """A hand-written status.json may carry tasks without 'done' (review v1.2.1)."""
+    repo.write_feature(phase="implement", spec=True, plan=True,
+                       tasks={"total": 5})
+    code, out = run_hook("session_state.py", {"cwd": str(repo)})
+    assert code == 0 and "001-x" in out and "0/5" in out
+
+
 def test_pending_review_questionnaire_flagged(repo):
     fdir = repo.write_feature(phase="requirements")
     (fdir / "spec.md").write_text("# spec", encoding="utf-8")
