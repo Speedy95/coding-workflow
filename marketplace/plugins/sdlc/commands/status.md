@@ -12,7 +12,9 @@ Show the SDLC status board.
    gates), and updatedAt. Archived features (specs/archive/) are excluded.
 3. Below the table, one line per in-flight feature naming its next action
    (e.g. "001-due-dates → spec awaits review: read specs/001-due-dates/spec.md,
-   then say 'approve the spec'").
+   then say 'approve the spec'"). When the feature directory contains a
+   `REVIEW.md`, say so on that line — an unattended run left questions there
+   and the answers are the gate.
 4. If `specs/metrics.jsonl` exists and has 3+ verify events, add a one-line
    health note (e.g. first-try green rate) — data, not vibes.
 

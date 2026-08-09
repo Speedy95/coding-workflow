@@ -23,7 +23,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 PHASES = ["requirements", "plan", "implement", "verify", "document"]
-ARTIFACT_FILES = ["spec.md", "plan.md", "verification.md"]
+ARTIFACT_FILES = ["spec.md", "plan.md", "verification.md", "REVIEW.md"]
 MAX_ARTIFACT_BYTES = 120_000
 
 

@@ -1,6 +1,6 @@
 ---
 description: SDLC board - static snapshot or live local dashboard with artifact reader
-argument-hint: [--serve] [output path]
+argument-hint: "[--serve] [output path]"
 ---
 
 Run the SDLC dashboard: $ARGUMENTS

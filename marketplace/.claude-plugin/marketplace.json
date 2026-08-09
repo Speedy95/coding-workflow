@@ -1,5 +1,6 @@
 {
   "name": "sdlc-marketplace",
+  "description": "A gated, self-improving SDLC workflow for Claude Code: one command per feature, conversational approvals, hook-enforced scope gates, and a retro loop that turns experience into lessons.",
   "owner": {
     "name": "Alex"
   },
