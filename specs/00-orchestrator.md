@@ -7,10 +7,15 @@ executing payloads).
 
 ## Repos and layout
 
-- `../marketplace/` — git repo, the plugin (`plugins/sdlc/`: commands/,
-  skills/, agents/, hooks/, dashboard/, schema/, evals/; tests in `tests/`).
-- `../demo-app/` — git repo, taskler; 3 features shipped through the
-  workflow; used for smoke runs.
+Since 2026-08-09 this is a SINGLE git repo (monorepo) rooted at
+`coding-workflow/`, remote `github.com/Speedy95/coding-workflow` — commit at
+the root, one commit per unit, push allowed. Pre-monorepo histories of the
+former inner repos live in local `.git-bundles/` (untracked).
+
+- `../marketplace/` — the plugin (`plugins/sdlc/`: commands/, skills/,
+  agents/, hooks/, dashboard/, schema/, evals/; tests in `tests/`).
+- `../demo-app/` — taskler; 3 features shipped through the workflow; used
+  for smoke runs.
 - This `specs/` folder is program documentation, NOT sdlc-plugin state — do
   not create status.json files here.
 
@@ -40,8 +45,8 @@ so a unit's live verification only sees the previous unit's install.
 - Docs: every unit updates `marketplace/CHANGELOG.md` (new version section),
   bumps `plugins/sdlc/.claude-plugin/plugin.json` version, and fixes any
   README count/claim it invalidates (audit found these drift — check them).
-- Commit style: one commit per unit in each touched repo, message =
-  `vX.Y.0: <unit name>` + bullet summary. Do not push.
+- Commit style: one commit per unit at the repo root, message =
+  `vX.Y.0: <unit name>` + bullet summary. Push to origin after committing.
 - Timestamps: never invent — obtain via `date -u +%Y-%m-%dT%H:%M:%SZ`
   (unit B ships the CLI that removes this class of work).
 
