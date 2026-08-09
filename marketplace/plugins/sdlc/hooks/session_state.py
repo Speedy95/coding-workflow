@@ -13,13 +13,30 @@ from pathlib import Path
 PHASES = ["requirements", "plan", "implement", "verify", "document"]
 
 
+def is_sdlc_root(candidate: Path) -> bool:
+    """True when candidate/specs is a real SDLC board, not just a specs/ folder.
+
+    Twin of the identical check in gate_check.py — hooks cannot share a module
+    (no package on sys.path), so keep the two definitions in sync.
+    """
+    specs = candidate / "specs"
+    try:
+        if not specs.is_dir():
+            return False
+        if (specs / "metrics.jsonl").exists():
+            return True
+        return any(specs.glob("*/status.json"))
+    except OSError:
+        return False
+
+
 def find_root(start: Path) -> Path | None:
     try:
         p = start.resolve()
     except OSError:
         return None
     for candidate in [p, *p.parents]:
-        if (candidate / "specs").is_dir():
+        if is_sdlc_root(candidate):
             return candidate
     return None
 
@@ -38,10 +55,18 @@ def next_action(feature_dir: Path, st: dict) -> str:
                 else f"run /sdlc:plan {slug}")
     if phase in ("implement", "verify", "document"):
         return f"resume with /sdlc:{phase} {slug}"
-    return "shipped"
+    # An unrecognised phase is a broken state file, not a shipped feature —
+    # say so instead of quietly filing it under "shipped".
+    return "unrecognised phase — check with /sdlc:status"
 
 
 def main():
+    # SessionStart output goes to whatever console the user has; an ascii-only
+    # stdout must not turn the board into a UnicodeEncodeError traceback.
+    try:
+        sys.stdout.reconfigure(errors="replace")
+    except (AttributeError, OSError, ValueError):
+        pass
     try:
         payload = json.load(sys.stdin)
     except (json.JSONDecodeError, UnicodeDecodeError):
