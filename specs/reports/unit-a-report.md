@@ -1,6 +1,6 @@
 # Unit A report — v1.2.0 "honest gate"
 
-Spec: [01-honest-gate.md](../01-honest-gate.md). Source analysis:
+Spec: `01-honest-gate.md` (removed after completion; in git history). Source analysis:
 [IMPROVEMENTS-2.md](../../IMPROVEMENTS-2.md) P0 items 1–8.
 Plugin v1.1.0 → **v1.2.0**, installed user-scope and verified enabled.
 

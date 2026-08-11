@@ -80,6 +80,21 @@ Live gate probes (installed hooks, not the repo copy):
    (deliberately not a board).
 4. New session in `demo-app/` → SessionStart prints three `shipped` lines.
 
+## Open items no spec owns yet (Alex to assign — proposed: fold into B as B6)
+
+- **Deleting the board directory itself is ungated**: `check_target` only
+  inspects the target's PARENT for a board, so `rm -rf demo-app` from
+  outside passes the gate while `rm demo-app/taskler.py` blocks.
+  Discovered live during the session-2 history rewrite; not yet in any
+  CHANGELOG/spec.
+- Unassigned residual screening gaps from CHANGELOG 1.2.1: PowerShell
+  alias commands (`ri`, `del`, `erase`, `mi`), POSIX `unlink`/`shred`;
+  `status.json` written via Bash bypasses PostToolUse validation (cheap
+  fix: re-validate all boards at SessionStart, warn on invalid).
+- Copy-on-install vs live source-reference for local plugin installs
+  (the session-2 lockout root cause) → belongs in Unit D1's architecture
+  comparison, one bullet.
+
 ## Unit B notes (read with 02-state-machine-cli.md)
 
 - Baseline is 135 tests, not the 36 the orchestrator mentions or the 118

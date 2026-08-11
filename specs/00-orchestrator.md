@@ -23,7 +23,7 @@ former inner repos live in local `.git-bundles/` (untracked).
 
 | Unit | Spec | Depends on | Parallel-safe? |
 |------|------|-----------|----------------|
-| A: v1.2.0 honest gate | 01-honest-gate.md | — | no (touches hooks + tests broadly) |
+| A: v1.2.0 honest gate | done (spec removed; see reports/unit-a-report.md) | — | no (touches hooks + tests broadly) |
 | B: v1.3.0 state machine + CLI | 02-state-machine-cli.md | A (invariant checks, validator changes) | no (touches skills A leaves alone, but shares tests/, schema/) |
 | C: v1.4.0 verification + lessons | 03-verification-lessons.md | B (uses the CLI; dogfoods the workflow) | no |
 | D: v2.0.0 platform design doc | 04-platform-design.md | A–C outcomes inform it | yes vs C, after A+B |
@@ -62,7 +62,7 @@ so a unit's live verification only sees the previous unit's install.
 ## Per-unit definition of done
 
 1. All new tests green AND full suite green: `python -m pytest tests -q`
-   from `marketplace/` (baseline: 36 passing).
+   from `marketplace/` (baseline after Unit A + v1.2.1: 135 passing).
 2. `claude plugin validate ./marketplace/plugins/sdlc --strict` passes
    [VERIFY: exact CLI syntax — check `claude plugin validate --help`].
 3. CHANGELOG entry + version bump + README claims corrected.

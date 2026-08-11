@@ -7,11 +7,12 @@ plugin, plus a demo repository. (Formerly `sdlc-workflow`.)
 coding-workflow/       # single repo (monorepo since 2026-08-09)
 ├── marketplace/       # the shareable plugin marketplace (plugins/sdlc)
 ├── demo-app/          # taskler demo (three features shipped through the workflow)
-├── specs/             # improvement-program specs (orchestrator + units A-D)
-├── IMPROVEMENTS.md    # improvement review that produced v1.0.0
-├── IMPROVEMENTS-2.md  # full analysis #2 (v1.1.0) that produced the unit specs
-└── design-candidates/ # dashboard design exploration (reference)
+├── specs/             # improvement-program specs (orchestrator + open units)
+└── IMPROVEMENTS-2.md  # full analysis #2 (v1.1.0) that produced the unit specs
 ```
+
+Completed material (the v1.0.0 review, done unit specs, dashboard design
+candidates) is removed from the tree and lives in git history.
 
 Pre-monorepo commit history of `marketplace/` and `demo-app/` is preserved
 in local `.git-bundles/` (untracked).
