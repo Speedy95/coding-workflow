@@ -219,7 +219,7 @@ first four in the README Enforcement section:
 
 Between my last edit and the commit step, the three-repo layout was folded into
 a single monorepo: `marketplace/.git` and `demo-app/.git` were removed
-(histories preserved in untracked `.git-bundles/`) and commit `94a0e39`
+(histories preserved in untracked `.git-bundles/`, later discarded) and commit `94a0e39`
 "monorepo: fold marketplace and demo-app into this repo" swept my in-progress
 Unit A files in with it. I verified nothing was lost or altered (working tree
 clean, 118/118 green, every A7 doc edit present in HEAD) and did **not** rewrite

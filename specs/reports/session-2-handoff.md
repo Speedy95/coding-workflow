@@ -11,8 +11,9 @@ spec `02-state-machine-cli.md`.
   marketplace. Suite: **135 passed** (`python -m pytest marketplace/tests -q`
   from the repo root). `claude plugin validate --strict
   ./marketplace/plugins/sdlc` passes.
-- One repo: `coding-workflow` (monorepo since Unit A; inner histories in
-  untracked `.git-bundles/`). Remote `main` was **force-pushed** this
+- One repo: `coding-workflow` (monorepo since Unit A; pre-monorepo inner
+  histories discarded 2026-08-11 at Alex's request — the v1.1.0 fold-in
+  commits are now the earliest state). Remote `main` was **force-pushed** this
   session — the three opaque commits were rewritten into 12 reviewable
   increments (`67c74ca..2402653`). Local branch `backup-linear` holds the
   pre-rewrite state; delete it once Alex is satisfied.

@@ -12,10 +12,9 @@ coding-workflow/       # single repo (monorepo since 2026-08-09)
 ```
 
 Completed material (the v1.0.0 review, done unit specs, dashboard design
-candidates) is removed from the tree and lives in git history.
-
-Pre-monorepo commit history of `marketplace/` and `demo-app/` is preserved
-in local `.git-bundles/` (untracked).
+candidates) is removed from the tree and lives in git history. Pre-monorepo
+commit history of the former inner repos was discarded deliberately
+(2026-08-11) — this repo's history starts them at their v1.1.0 states.
 
 ## The workflow
 
@@ -101,8 +100,8 @@ claude
 
 For a team: GitHub marketplace installs expect `.claude-plugin/marketplace.json`
 at the repo root — since this is a monorepo, either split `marketplace/` out
-into its own repo at that point (history is in `.git-bundles/`), or keep using
-local-path installs.
+into its own repo at that point (`git subtree split` or filter-repo), or keep
+using local-path installs.
 
 Two operational notes (learned the hard way):
 - Plugin content loads at **session start** — after changing the plugin,

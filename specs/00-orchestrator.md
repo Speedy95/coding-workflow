@@ -9,8 +9,9 @@ executing payloads).
 
 Since 2026-08-09 this is a SINGLE git repo (monorepo) rooted at
 `coding-workflow/`, remote `github.com/Speedy95/coding-workflow` — commit at
-the root, one commit per unit, push allowed. Pre-monorepo histories of the
-former inner repos live in local `.git-bundles/` (untracked).
+the root, small reviewable commits, push allowed. Pre-monorepo histories of
+the former inner repos were discarded (2026-08-11); this repo's history
+starts them at their v1.1.0 states.
 
 - `../marketplace/` — the plugin (`plugins/sdlc/`: commands/, skills/,
   agents/, hooks/, dashboard/, schema/, evals/; tests in `tests/`).

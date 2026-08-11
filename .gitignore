@@ -4,7 +4,6 @@
 .vscode/
 
 # Pre-monorepo history of the former inner repos (git bundles, local only)
-.git-bundles/
 
 # Python
 __pycache__/
