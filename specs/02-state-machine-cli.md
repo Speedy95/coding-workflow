@@ -4,6 +4,16 @@ Goal: close the state-machine gaps (IMPROVEMENTS-2.md P1) and eliminate
 hand-authored bookkeeping (P2) via a plugin-shipped CLI. Depends on Unit A
 (invariant checks in validate_status.py, hardened find_root).
 
+> **Session-2 amendments (v1.2.1)** — read
+> `reports/session-2-handoff.md` first. Deltas that bind this spec:
+> baseline is **135 tests** (a post-Unit-A review round shipped v1.2.1);
+> any launcher that invokes the CLI must use the hooks.json pattern
+> (`[ -f script ] || exit 0`, then `python` → `python3` fallback);
+> the document phase is now **docs-only** (`.md/.rst/.txt` in scope) —
+> B4's skill/command rewrites must not instruct code edits there;
+> the CLI must always write both `tasks.done` and `tasks.total`;
+> commit as several small reviewable commits, not one per unit.
+
 ## B1. `bin/sdlc_state.py` — the state CLI
 
 New file `marketplace/plugins/sdlc/bin/sdlc_state.py` (stdlib only,
